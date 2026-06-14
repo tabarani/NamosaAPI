@@ -1,0 +1,29 @@
+{
+    "name": "yulpana/namosa-api",
+    "description": "RESTful API layer for Gibbon Educore",
+    "type": "gibbon-module",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Yulpana Edutech",
+            "email": "tech@yulpana.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "firebase/php-jwt": "^6.0",
+        "vlucas/phpdotenv": "^5.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "NamosaAPI\\": "api/v1/lib/",
+            "NamosaAPI\\Middleware\\": "api/v1/middleware/",
+            "NamosaAPI\\Controllers\\": "api/v1/controllers/",
+            "NamosaAPI\\Services\\": "api/v1/services/",
+            "NamosaAPI\\Repositories\\": "api/v1/repositories/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

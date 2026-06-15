@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "IdentityReconciliation.Domain/1.0.0": {
+        "runtime": {
+          "IdentityReconciliation.Domain.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "IdentityReconciliation.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

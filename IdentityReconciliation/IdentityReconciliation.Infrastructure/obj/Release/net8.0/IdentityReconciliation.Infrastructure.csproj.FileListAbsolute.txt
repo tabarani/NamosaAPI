@@ -1,0 +1,17 @@
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.AssemblyInfo.cs
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Infrastructure.deps.json
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Infrastructure.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Infrastructure.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Application.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Domain.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Application.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\bin\Release\net8.0\IdentityReconciliation.Domain.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\Identity.05BB5500.Up2Date
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\refint\IdentityReconciliation.Infrastructure.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\IdentityReconciliation.Infrastructure.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Infrastructure\obj\Release\net8.0\ref\IdentityReconciliation.Infrastructure.dll

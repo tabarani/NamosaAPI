@@ -1,0 +1,87 @@
+@page
+@model IdentityReconciliation.WebAPI.Pages.Account.LoginModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - NBS Identity Provider</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b2838 50%, #0d47a1 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 50px 40px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 420px;
+        }
+        .login-card h1 { text-align: center; color: #1a237e; font-size: 22px; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #666; font-size: 14px; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-weight: 600; color: #333; margin-bottom: 6px; font-size: 14px; }
+        .form-group input[type="email"],
+        .form-group input[type="password"] {
+            width: 100%; padding: 14px 16px; border: 2px solid #ddd; border-radius: 10px;
+            font-size: 15px; transition: border-color 0.3s; outline: none;
+        }
+        .form-group input:focus { border-color: #2196F3; }
+        .remember { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 14px; color: #555; }
+        .btn-login {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #2196F3, #1565C0);
+            color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 6px 20px rgba(33,150,243,0.4); transition: all 0.3s;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(33,150,243,0.5); }
+        .error-msg {
+            background: #ffebee; color: #c62828; padding: 12px; border-radius: 8px;
+            margin-bottom: 20px; font-size: 14px; text-align: center;
+        }
+        .validation-error { color: #c62828; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h1>🔐 NBS Identity Provider</h1>
+        <p class="subtitle">Sign in with your account</p>
+
+        <div asp-validation-summary="ModelOnly" class="error-msg" style="@(ViewData.ModelState.ErrorCount > 0 ? "" : "display:none")"></div>
+
+        <form method="post">
+            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+
+            <div class="form-group">
+                <label asp-for="Input.Email">Email</label>
+                <input asp-for="Input.Email" type="email" placeholder="user@nbs.edu.mr" required autofocus />
+                <span asp-validation-for="Input.Email" class="validation-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Input.Password">Password</label>
+                <input asp-for="Input.Password" type="password" placeholder="••••••••" required />
+                <span asp-validation-for="Input.Password" class="validation-error"></span>
+            </div>
+
+            <div class="remember">
+                <input asp-for="Input.RememberMe" type="checkbox" />
+                <label asp-for="Input.RememberMe">Remember me</label>
+            </div>
+
+            <button type="submit" class="btn-login">Sign In</button>
+        </form>
+    </div>
+</body>
+</html>

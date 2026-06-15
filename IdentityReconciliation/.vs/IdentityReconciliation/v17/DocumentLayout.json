@@ -1,0 +1,197 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|c:\\users\\ma.elnaiem\\source\\repos\\sso\\identityreconciliation\\identityreconciliation.infrastructure\\identityreconciliation.infrastructure.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|solutionrelative:identityreconciliation.infrastructure\\identityreconciliation.infrastructure.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|c:\\users\\ma.elnaiem\\source\\repos\\sso\\identityreconciliation\\identityreconciliation.infrastructure\\infrastructure\\dependencyinjection.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|solutionrelative:identityreconciliation.infrastructure\\infrastructure\\dependencyinjection.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D49DD9B6-3A6E-EA4C-5A44-DC840B10F15C}|IdentityReconciliation.WebAPI\\IdentityReconciliation.WebAPI.csproj|c:\\users\\ma.elnaiem\\source\\repos\\sso\\identityreconciliation\\identityreconciliation.webapi\\controllers\\authorizationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D49DD9B6-3A6E-EA4C-5A44-DC840B10F15C}|IdentityReconciliation.WebAPI\\IdentityReconciliation.WebAPI.csproj|solutionrelative:identityreconciliation.webapi\\controllers\\authorizationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{D49DD9B6-3A6E-EA4C-5A44-DC840B10F15C}|IdentityReconciliation.WebAPI\\IdentityReconciliation.WebAPI.csproj|c:\\users\\ma.elnaiem\\source\\repos\\sso\\identityreconciliation\\identityreconciliation.webapi\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{D49DD9B6-3A6E-EA4C-5A44-DC840B10F15C}|IdentityReconciliation.WebAPI\\IdentityReconciliation.WebAPI.csproj|solutionrelative:identityreconciliation.webapi\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|c:\\users\\ma.elnaiem\\source\\repos\\sso\\identityreconciliation\\identityreconciliation.infrastructure\\infrastructure\\openiddict\\clientseedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{67BCB9F1-560B-06AA-6BE0-9E0680921E5F}|IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj|solutionrelative:identityreconciliation.infrastructure\\infrastructure\\openiddict\\clientseedservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\WebAPI\\WebAPI.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj||{04B8AB82-A572-4FEF-95CE-5222444B6B64}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\Infrastructure\\Class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\ma.elnaiem\\source\\repos\\Domain\\Class1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "IdentityReconciliation.Infrastructure",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj",
+              "RelativeDocumentMoniker": "IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj",
+              "RelativeToolTip": "IdentityReconciliation.Infrastructure\\IdentityReconciliation.Infrastructure.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-05-20T12:08:18.633Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DependencyInjection.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\Infrastructure\\DependencyInjection.cs",
+              "RelativeDocumentMoniker": "IdentityReconciliation.Infrastructure\\Infrastructure\\DependencyInjection.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\Infrastructure\\DependencyInjection.cs",
+              "RelativeToolTip": "IdentityReconciliation.Infrastructure\\Infrastructure\\DependencyInjection.cs",
+              "ViewState": "AgIAAAQAAAAAAAAAAIAwwBEAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-20T12:07:30.506Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AuthorizationController.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.WebAPI\\Controllers\\AuthorizationController.cs",
+              "RelativeDocumentMoniker": "IdentityReconciliation.WebAPI\\Controllers\\AuthorizationController.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.WebAPI\\Controllers\\AuthorizationController.cs",
+              "RelativeToolTip": "IdentityReconciliation.WebAPI\\Controllers\\AuthorizationController.cs",
+              "ViewState": "AgIAAEsAAAAAAAAAAAAYwFYAAAA4AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-20T11:51:10.1Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ClientSeedService.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\Infrastructure\\OpenIddict\\ClientSeedService.cs",
+              "RelativeDocumentMoniker": "IdentityReconciliation.Infrastructure\\Infrastructure\\OpenIddict\\ClientSeedService.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Infrastructure\\Infrastructure\\OpenIddict\\ClientSeedService.cs",
+              "RelativeToolTip": "IdentityReconciliation.Infrastructure\\Infrastructure\\OpenIddict\\ClientSeedService.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAewBQAAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-20T11:50:15.306Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.WebAPI\\Program.cs",
+              "RelativeDocumentMoniker": "IdentityReconciliation.WebAPI\\Program.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.WebAPI\\Program.cs",
+              "RelativeToolTip": "IdentityReconciliation.WebAPI\\Program.cs",
+              "ViewState": "AgIAABYAAAAAAAAAAAAYwCUAAAAnAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-19T20:39:24.689Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "WebAPI.csproj",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\WebAPI\\WebAPI.csproj",
+              "RelativeDocumentMoniker": "..\\..\\WebAPI\\WebAPI.csproj",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\WebAPI\\WebAPI.csproj",
+              "RelativeToolTip": "..\\..\\WebAPI\\WebAPI.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-05-11T07:42:41.51Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Application.csproj",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj",
+              "RelativeDocumentMoniker": "..\\..\\Application\\Application.csproj",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj",
+              "RelativeToolTip": "..\\..\\Application\\Application.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-05-11T07:28:31.47Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Application.csproj",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj",
+              "RelativeDocumentMoniker": "..\\..\\Application\\Application.csproj",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Application.csproj",
+              "RelativeToolTip": "..\\..\\Application\\Application.csproj",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-05-11T07:25:52.175Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\Infrastructure\\Class1.cs",
+              "RelativeDocumentMoniker": "..\\..\\Infrastructure\\Class1.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\Infrastructure\\Class1.cs",
+              "RelativeToolTip": "..\\..\\Infrastructure\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-11T07:24:28.334Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Class1.cs",
+              "RelativeDocumentMoniker": "..\\..\\Application\\Class1.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\Application\\Class1.cs",
+              "RelativeToolTip": "..\\..\\Application\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-11T07:24:05.991Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "Class1.cs",
+              "DocumentMoniker": "C:\\Users\\ma.elnaiem\\source\\repos\\Domain\\Class1.cs",
+              "RelativeDocumentMoniker": "..\\..\\Domain\\Class1.cs",
+              "ToolTip": "C:\\Users\\ma.elnaiem\\source\\repos\\Domain\\Class1.cs",
+              "RelativeToolTip": "..\\..\\Domain\\Class1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-11T07:23:33.598Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

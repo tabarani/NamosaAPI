@@ -1,0 +1,15 @@
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\bin\Debug\net8.0\IdentityReconciliation.Application.deps.json
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\bin\Debug\net8.0\IdentityReconciliation.Application.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\bin\Debug\net8.0\IdentityReconciliation.Application.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\bin\Debug\net8.0\IdentityReconciliation.Domain.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\bin\Debug\net8.0\IdentityReconciliation.Domain.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.csproj.AssemblyReference.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.AssemblyInfoInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.AssemblyInfo.cs
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.csproj.CoreCompileInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\Identity.BDD3C591.Up2Date
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\refint\IdentityReconciliation.Application.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\IdentityReconciliation.Application.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Application\obj\Debug\net8.0\ref\IdentityReconciliation.Application.dll

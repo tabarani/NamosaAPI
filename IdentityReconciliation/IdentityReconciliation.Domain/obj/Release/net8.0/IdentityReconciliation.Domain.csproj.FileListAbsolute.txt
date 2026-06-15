@@ -1,0 +1,11 @@
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\bin\Release\net8.0\IdentityReconciliation.Domain.deps.json
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\bin\Release\net8.0\IdentityReconciliation.Domain.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\bin\Release\net8.0\IdentityReconciliation.Domain.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.AssemblyInfoInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.AssemblyInfo.cs
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.csproj.CoreCompileInputs.cache
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\refint\IdentityReconciliation.Domain.dll
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\IdentityReconciliation.Domain.pdb
+C:\Users\ma.elnaiem\source\repos\SSO\IdentityReconciliation\IdentityReconciliation.Domain\obj\Release\net8.0\ref\IdentityReconciliation.Domain.dll

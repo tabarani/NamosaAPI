@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "sW7V7Uh1Hlg=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\ma.elnaiem\\source\\repos\\SSO\\IdentityReconciliation\\IdentityReconciliation.Application\\IdentityReconciliation.Application.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\ma.elnaiem\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.7\\microsoft.extensions.dependencyinjection.abstractions.10.0.7.nupkg.sha512",
+    "C:\\Users\\ma.elnaiem\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\10.0.7\\microsoft.extensions.logging.abstractions.10.0.7.nupkg.sha512",
+    "C:\\Users\\ma.elnaiem\\.nuget\\packages\\system.diagnostics.diagnosticsource\\10.0.7\\system.diagnostics.diagnosticsource.10.0.7.nupkg.sha512"
+  ],
+  "logs": []
+}

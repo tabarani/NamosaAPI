@@ -1,25 +1,24 @@
 <?php
-/*
-NamosaAPI v1 - Staff Endpoint
-GET /api/v1/staff
-*/
+/**
+ * NamosaAPI v1 - Staff Endpoint
+ * GET /api/v1/staff
+ * 
+ * Requires: staff_read permission
+ */
 
+// Bootstrap Gibbon
 require_once __DIR__ . '/../../../gibbon.php';
-require_once __DIR__ . '/../lib/AuthMiddleware.php';
-require_once __DIR__ . '/config.php';
 
-use Gibbon\Module\NamosaAPI\AuthMiddleware;
-use Gibbon\Module\NamosaAPI\Config;
-
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Authorization, Content-Type');
-
+// Handle CORS preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+    http_response_code(200);
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    exit;
 }
 
+// Only allow GET method
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
@@ -27,93 +26,146 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    $configService = new Config($gibbon->session->get('connection2'));
-    $config = $configService->get();
+    // Initialize configuration
+    require_once __DIR__ . '/config.php';
+    $configObj = new Gibbon\Module\NamosaAPI\Config($connection2);
+    $config = $configObj->get();
 
-    if (!$configService->isConfigured()) {
-        throw new \Exception('NamosaAPI is not configured.');
+    if (!$configObj->isConfigured()) {
+        throw new Exception('NamosaAPI not configured');
     }
 
-    $auth = new AuthMiddleware($gibbon->session->get('connection2'), $config);
+    // Authenticate request
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     
-    if (!$auth->authenticate()) {
+    if (empty($authHeader) || strpos($authHeader, 'Bearer ') !== 0) {
         http_response_code(401);
-        echo json_encode(['error' => 'Unauthorized', 'message' => $auth->getError()]);
+        echo json_encode(['success' => false, 'error' => 'Missing Authorization header']);
         exit;
     }
 
-    if (!$auth->hasPermission('staff_read') && !$auth->hasRole('Admin')) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Forbidden', 'message' => 'Insufficient permissions']);
-        exit;
-    }
+    $token = substr($authHeader, 7);
 
-    $limit = min((int)($_GET['limit'] ?? 50), 200);
-    $offset = (int)($_GET['offset'] ?? 0);
-    $search = $_GET['search'] ?? '';
-    $status = $_GET['status'] ?? 'Full';
+    // Validate JWT token
+    require_once __DIR__ . '/../lib/JWTValidator.php';
+    $jwtValidator = new JWTValidator(
+        $config['jwks_url'],
+        $config['issuer'],
+        $config['audience'],
+        $config['cache_dir']
+    );
 
-    $data = ['status' => $status];
-    $sql = "SELECT 
-                p.gibbonPersonID,
-                p.username,
-                p.surname,
-                p.preferredName,
-                p.email,
-                p.phone1,
-                p.status,
-                s.staffTypeID,
-                st.name AS staffType,
-                s.dateStart,
-                s.dateEnd
-            FROM gibbonPerson p
-            JOIN gibbonStaff s ON p.gibbonPersonID = s.gibbonPersonID
-            JOIN gibbonStaffType st ON s.staffTypeID = st.staffTypeID
-            WHERE p.status = :status";
-
-    if (!empty($search)) {
-        $sql .= " AND (p.surname LIKE :search OR p.preferredName LIKE :search OR p.email LIKE :search)";
-        $data['search'] = '%' . $search . '%';
-    }
-
-    $sql .= " ORDER BY p.surname ASC";
-    $sql .= " LIMIT :offset, :limit";
+    $payload = $jwtValidator->validate($token);
     
-    $data['offset'] = $offset;
-    $data['limit'] = $limit;
-
-    $stmt = $gibbon->session->get('connection2')->execute($data, $sql);
-
-    $staff = [];
-    if ($stmt->rowCount() > 0) {
-        $staff = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid token']);
+        exit;
     }
+
+    // Extract user ID
+    $userIdClaim = $config['user_id_claim'] ?? 'sub';
+    $gibbonPersonID = $payload[$userIdClaim] ?? null;
+
+    if (!$gibbonPersonID) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'User ID not found']);
+        exit;
+    }
+
+    // Load permissions
+    require_once __DIR__ . '/../lib/PermissionService.php';
+    $permissionService = new PermissionService($connection2);
+    $userPermissions = $permissionService->loadPermissions($gibbonPersonID);
+    $userRoles = $permissionService->loadRoles($gibbonPersonID);
+
+    // Check permission
+    if (!$permissionService->hasPermission($userPermissions, 'staff_read')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Insufficient permissions']);
+        exit;
+    }
+
+    // Parse parameters
+    $limit = min((int)($_GET['limit'] ?? 50), 200);
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    $search = trim($_GET['search'] ?? '');
+    $status = $_GET['status'] ?? 'Full';
+    $type = $_GET['type'] ?? 'Staff';
+
+    // Build query
+    $whereConditions = ['gp.type = :type', 'gp.status = :status'];
+    $params = ['type' => $type, 'status' => $status];
+
+    if ($search) {
+        $whereConditions[] = "(gp.surname LIKE :search OR gp.preferredName LIKE :search OR gp.email LIKE :search)";
+        $params['search'] = '%' . $search . '%';
+    }
+
+    $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
 
     // Count total
-    $countData = ['status' => $status];
-    $countSql = "SELECT COUNT(*) as total FROM gibbonPerson p
-                 JOIN gibbonStaff s ON p.gibbonPersonID = s.gibbonPersonID
-                 WHERE p.status = :status";
-    
-    if (!empty($search)) {
-        $countSql .= " AND (p.surname LIKE :search OR p.preferredName LIKE :search)";
-        $countData['search'] = '%' . $search . '%';
+    $countSql = "SELECT COUNT(*) as total FROM gibbonPerson gp $whereClause";
+    $countStmt = $connection2->execute($params, $countSql);
+    $total = $countStmt->fetch()['total'] ?? 0;
+
+    // Get staff
+    $selectSql = "
+        SELECT 
+            gp.gibbonPersonID,
+            gp.title,
+            gp.surname,
+            gp.preferredName,
+            gp.email,
+            gp.phone1,
+            gp.phone2,
+            gp.address,
+            gp.city,
+            gp.country,
+            gp.postcode,
+            gp.gender,
+            gp.dateOfBirth,
+            gp.image_240,
+            gp.status,
+            gp.type,
+            gp.employmentType,
+            gp.jobTitle
+        FROM gibbonPerson gp
+        $whereClause
+        ORDER BY gp.surname, gp.preferredName
+        LIMIT :limit OFFSET :offset
+    ";
+
+    $selectStmt = $connection2->prepare($selectSql);
+    foreach ($params as $key => $value) {
+        $selectStmt->bindValue(':' . $key, $value);
     }
+    $selectStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $selectStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $selectStmt->execute();
 
-    $total = $gibbon->session->get('connection2')->execute($countData, $countSql)->fetch()['total'] ?? 0;
+    $staff = $selectStmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Response
+    http_response_code(200);
+    header('Content-Type: application/json');
     echo json_encode([
         'success' => true,
         'data' => $staff,
-        'meta' => [
-            'total' => $total,
+        'pagination' => [
+            'total' => (int)$total,
             'limit' => $limit,
             'offset' => $offset,
             'hasMore' => ($offset + $limit) < $total
+        ],
+        'meta' => [
+            'requestedBy' => $gibbonPersonID,
+            'timestamp' => date('c')
         ]
     ]);
 
-} catch (\Exception $e) {
+} catch (Exception $e) {
+    error_log('NamosaAPI Staff Error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Internal Server Error', 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Internal server error']);
 }

@@ -1,160 +1,230 @@
-# NamosaAPI - Implementation Summary
+# NamosaAPI Ecosystem - Setup & Usage Guide
 
-## ✅ Completed Components
+## Overview
 
-### 1. Gibbon_OIDC Module (Authentication)
-**Location:** `/workspace/modules/Gibbon_OIDC/`
+This repository contains three integrated modules for Gibbon:
 
-- **`lib/JWTValidator.php`**: Validates JWT tokens from external IdentityProvider using JWKS endpoint
-  - Supports RS256 signature verification
-  - Caches JWKS keys for 1 hour
-  - Validates issuer and audience claims
-  - Requires phpseclib3 for JWK to PEM conversion
+1. **Gibbon_OIDC** - OpenID Connect authentication module for SSO
+2. **NamosaAPI** - RESTful API for school data (students, staff, courses)
+3. **Transport** - Transportation management with REST API
 
-- **`lib/PermissionService.php`**: Loads user roles and permissions from Gibbon database
-  - Queries `gibbonRole`, `gibbonPermission`, and `gibbonPerson` tables
-  - Provides `hasPermission()` and `hasRole()` methods
+## Architecture
 
-- **`settings.php`**: Configuration UI for OIDC settings in Gibbon Admin
-  - Stores IdP URL, client credentials, scopes
-  - Auto-redirect option for SSO
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐
+│   Moodle        │     │   Gibbon Core    │     │   Mobile    │
+│   (OIDC Client) │     │   + OIDC Module  │     │   Apps      │
+└────────┬────────┘     └────────┬─────────┘     └──────┬──────┘
+         │                       │                      │
+         │          ┌────────────▼────────────┐         │
+         │          │   .NET IdentityProvider │         │
+         │          │   (OpenIddict/JWKS)     │         │
+         │          └────────────┬────────────┘         │
+         │                       │                      │
+         ▼                       ▼                      ▼
+┌────────────────────────────────────────────────────────────────┐
+│                    NamosaAPI Module                             │
+│  - JWT Validation (RS256 via JWKS)                             │
+│  - Permission Enforcement                                       │
+│  - REST Endpoints: /api/v1/students, /staff, /courses          │
+└────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌────────────────────────────────────────────────────────────────┐
+│                   Transport Module                              │
+│  - Dual Auth: JWT + Legacy API Key                             │
+│  - Endpoints: /transport/api/v1/students (bus routes)          │
+└────────────────────────────────────────────────────────────────┘
+```
 
-### 2. NamosaAPI Module (RESTful API)
-**Location:** `/workspace/modules/NamosaAPI/`
+## Installation
 
-- **`lib/AuthMiddleware.php`**: Authentication middleware for API endpoints
-  - Validates Bearer tokens from Authorization header
-  - Extracts user ID from token claims
-  - Loads user context with roles and permissions
-  - Integrates with JWTValidator and PermissionService
+### 1. Install Gibbon_OIDC Module First
 
-- **`api/v1/config.php`**: Configuration loader
-  - Reads OIDC settings from Gibbon database
-  - Supports local override via `config.local.php`
+1. Copy `modules/Gibbon_OIDC` to your Gibbon installation's `modules/` folder
+2. In Gibbon Admin → Manage Modules, install "Gibbon_OIDC"
+3. Configure settings:
+   - **IdP Base URL**: `https://144.91.66.114`
+   - **Client ID**: Your registered client ID
+   - **Client Secret**: Your registered client secret
+   - **Scopes**: `openid profile email gibbon_id`
+   - **Auto-redirect**: Enable for forced SSO
 
-- **`api/v1/students.php`**: GET /api/v1/students endpoint
-  - Requires `students_read` permission or Admin role
-  - Supports pagination (limit, offset)
-  - Supports search filtering
-  - Returns student data with enrolment info
+### 2. Install NamosaAPI Module
 
-- **`api/v1/staff.php`**: GET /api/v1/staff endpoint
-  - Requires `staff_read` permission
-  - Returns staff data with type and dates
+1. Copy `modules/NamosaAPI` to Gibbon's `modules/` folder
+2. Install via Admin → Manage Modules
+3. No additional config needed (uses Gibbon_OIDC settings)
 
-- **`api/v1/courses.php`**: GET /api/v1/courses endpoint
-  - Requires `courses_read` permission
-  - Returns courses with class counts
+### 3. Install/Update Transport Module
 
-- **`manifest.php`**: Module definition with permissions
+1. Update `modules/Transport` in Gibbon's `modules/` folder
+2. Install/upgrade via Admin → Manage Modules
+3. Configure API settings:
+   - **Enable API**: Yes
+   - **API Keys** (optional): Comma-separated list for legacy access
 
-### 3. Transport Module Enhancement
-**Location:** `/workspace/modules/Transport/`
+## Configuration
 
-- **`lib/TransportAPIHandler.php`**: Dual authentication handler
-  - Tries JWT authentication first (via NamosaAPI)
-  - Falls back to legacy API key authentication
-  - Provides unified permission checking
+### IdentityProvider Requirements
 
-- **`api/v1/students.php`**: GET /api/v1/students (transport-specific)
-  - Returns students assigned to transport routes
-  - Filterable by routeID and date
-  - Shows pickup/dropoff areas and seat numbers
+Your .NET IdentityProvider must:
 
----
+1. Issue JWT tokens with **RS256** signature
+2. Expose JWKS endpoint at: `{idpUrl}/.well-known/jwks.json`
+3. Include these claims in tokens:
+   - `sub` or `gibbon_person_id`: Gibbon Person ID (integer)
+   - `iss`: Issuer URL (must match IdP base URL)
+   - `aud`: Audience (default: `namosa-api`)
 
-## 🔧 Configuration Required
+### Environment Variables (Optional)
 
-### Step 1: Install Modules in Gibbon
-1. Go to **Admin > Manage Modules**
-2. Install **Gibbon_OIDC** module first
-3. Install **NamosaAPI** module
-4. Install/Update **Transport** module
+Override database settings with environment variables:
 
-### Step 2: Configure OIDC Settings
-In Gibbon Admin, navigate to the Gibbon_OIDC module settings:
-- **IdP Base URL**: `https://144.91.66.114` (your .NET IdentityProvider)
-- **Client ID**: (from your IdP registration)
-- **Client Secret**: (from your IdP registration)
-- **Scopes**: `openid profile email gibbon_id`
-- **User ID Claim**: `sub` or `gibbon_person_id`
+```bash
+export IDP_JWKS_URL="https://144.91.66.114/.well-known/jwks.json"
+export IDP_ISSUER="https://144.91.66.114"
+export IDP_AUDIENCE="namosa-api"
+export IDP_USER_CLAIM="sub"
+```
 
-### Step 3: Ensure Token Claims
-Your .NET IdentityProvider must include these claims in the JWT:
+## API Usage
+
+### Authentication
+
+All endpoints require a valid Bearer token from your IdentityProvider:
+
+```bash
+# Get token from IdP first (OAuth2 Authorization Code Flow)
+TOKEN=$(curl -X POST https://144.91.66.114/connect/token \
+  -d "grant_type=password" \
+  -d "client_id=your-client-id" \
+  -d "client_secret=your-secret" \
+  -d "username=user@school.com" \
+  -d "password=password" \
+  -d "scope=openid profile namosa-api" | jq -r '.access_token')
+
+# Use token in API requests
+curl -H "Authorization: Bearer $TOKEN" \
+     "https://gibbon.school/modules/NamosaAPI/api/v1/students"
+```
+
+### NamosaAPI Endpoints
+
+#### GET /api/v1/students
+List students with pagination and filtering.
+
+**Parameters:**
+- `limit` (default: 50, max: 200)
+- `offset` (default: 0)
+- `search` (surname, preferredName, email)
+- `status` (Full, Left, Expected)
+- `yearGroup` (gibbonYearGroupID)
+- `house`
+
+**Permission Required:** `students_read`
+
+#### GET /api/v1/staff
+List staff members.
+
+**Parameters:**
+- `limit`, `offset`, `search`
+- `status` (Full, Left)
+- `type` (Staff, etc.)
+
+**Permission Required:** `staff_read`
+
+#### GET /api/v1/courses
+List courses with enrollment counts.
+
+**Parameters:**
+- `limit`, `offset`, `search`
+- `schoolYear` (gibbonSchoolYearID)
+- `department` (gibbonDepartmentID)
+
+**Permission Required:** `courses_read`
+
+### Transport API Endpoints
+
+#### GET /transport/api/v1/students
+List students assigned to bus routes.
+
+**Parameters:**
+- `limit`, `offset`, `page`
+- `routeID` (filter by route)
+- `stopID` (filter by stop)
+- `studentID` (filter by student)
+- `status` (Y, N)
+- `search`
+
+**Auth:** JWT with `transport_read` permission OR valid API key
+
+**Example with API Key:**
+```bash
+curl "https://gibbon.school/modules/Transport/api/v1/students?api_key=your-api-key&routeID=5"
+```
+
+## Response Format
+
+All endpoints return JSON:
+
 ```json
 {
-  "sub": "123",              // Gibbon Person ID (numeric)
-  "iss": "https://144.91.66.114",
-  "aud": "namosa-api",
-  "email": "user@school.edu",
-  "name": "John Doe"
+  "success": true,
+  "data": [...],
+  "pagination": {
+    "total": 150,
+    "limit": 50,
+    "offset": 0,
+    "hasMore": true
+  },
+  "meta": {
+    "requestedBy": 123,
+    "timestamp": "2024-01-15T10:30:00+00:00"
+  }
 }
 ```
 
-### Step 4: Test Endpoints
+## Moodle Integration
 
-#### Using JWT (Recommended):
-```bash
-curl -X GET "https://gibbon.yourschool.com/modules/NamosaAPI/api/v1/students" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
-```
+To sync data with Moodle:
 
-#### Using API Key (Transport only):
-```bash
-curl -X GET "https://gibbon.yourschool.com/modules/Transport/api/v1/students" \
-  -H "X-API-Key: YOUR_API_KEY_HERE"
-```
+1. **Install Moodle OIDC Plugin** (auth_oidc)
+2. **Configure same IdP** settings in Moodle
+3. **Create Moodle Web Service** that calls NamosaAPI endpoints
+4. **Schedule Sync** for:
+   - Students → Moodle users
+   - Courses → Moodle categories/courses
+   - Enrolments → Moodle enrolments
+   - Grades (from Moodle) → Write back to Gibbon (future feature)
 
----
+## Troubleshooting
 
-## 📋 API Endpoints Summary
+### Token Validation Fails
+- Check JWKS endpoint is accessible: `curl https://144.91.66.114/.well-known/jwks.json`
+- Verify token claims match configuration (iss, aud)
+- Check server time is synchronized
 
-| Endpoint | Method | Permission | Description |
-|----------|--------|------------|-------------|
-| `/api/v1/students` | GET | `students_read` | List students with pagination |
-| `/api/v1/staff` | GET | `staff_read` | List staff members |
-| `/api/v1/courses` | GET | `courses_read` | List courses by school year |
-| `/transport/api/v1/students` | GET | `transport_read` | Students on bus routes |
+### Permission Denied
+- Ensure user has required permission in Gibbon (Admin → User Admin → Manage Permissions)
+- Check token contains correct `sub` claim matching Gibbon Person ID
 
-### Query Parameters (all endpoints):
-- `limit`: Max results (default: 50, max: 200)
-- `offset`: Pagination offset (default: 0)
-- `search`: Search term for name/email
-- `status`: Filter by status (default: 'Full')
+### CORS Issues
+- All endpoints include CORS headers for cross-origin requests
+- For production, restrict origins in web server config
 
----
+## Security Notes
 
-## 🚀 Next Steps for Moodle Integration
+- JWT keys are cached for 1 hour (configurable)
+- API keys should be rotated regularly
+- All database queries use prepared statements
+- Rate limiting should be configured at web server level
 
-1. **Configure Moodle OIDC Plugin**:
-   - Use the same IdP settings (`https://144.91.66.114`)
-   - Map `sub` claim to Moodle username or custom field
+## Future Enhancements
 
-2. **Create Moodle Web Service Functions**:
-   - Call NamosaAPI endpoints from Moodle
-   - Sync students, courses, enrolments bidirectionally
-
-3. **Data Flow**:
-   - **Gibbon → Moodle**: Students, courses, enrolments, staff
-   - **Moodle → Gibbon**: Grades, attendance, assignments
-
----
-
-## 🛡️ Security Features
-
-- ✅ JWT validation with JWKS (RS256)
-- ✅ Token expiration checking
-- ✅ Issuer and audience validation
-- ✅ Gibbon permission enforcement
-- ✅ SQL injection prevention (prepared statements)
-- ✅ CORS headers configured
-- ✅ Dual auth support (JWT + API Key fallback)
-
----
-
-## 📝 Notes
-
-- The `phpseclib3` library is required for JWK to PEM conversion (usually included with Gibbon)
-- JWKS keys are cached in `/tmp/gibbon_jwks_cache.json` for 1 hour
-- All endpoints return consistent JSON structure with `success`, `data`, and `meta` fields
-- Transport module maintains backward compatibility with existing API key users
+- [ ] POST/PUT/DELETE endpoints for write operations
+- [ ] Webhooks for real-time updates
+- [ ] Grade sync with Moodle
+- [ ] Attendance endpoints
+- [ ] Fee/payment endpoints
+- [ ] GraphQL support

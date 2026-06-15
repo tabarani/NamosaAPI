@@ -1,144 +1,184 @@
 <?php
-/*
-Transport Module API v1 - Enhanced with JWT/OIDC Support
-Supports both legacy API Key and new JWT authentication
-*/
-
-namespace Gibbon\Module\Transport\API;
-
-use Gibbon\Module\NamosaAPI\AuthMiddleware;
-use Gibbon\Module\NamosaAPI\Config as NamosaConfig;
+/**
+ * Transport Module - API Handler
+ * 
+ * Handles RESTful API requests for transportation data
+ * Supports dual authentication: JWT (NamosaAPI) and legacy API Key
+ */
 
 class TransportAPIHandler
 {
     private $pdo;
-    private $authMiddleware = null;
-    private $user = null;
-    private $isJWTAuth = false;
-
+    private $config;
+    
     public function __construct($pdo)
     {
         $this->pdo = $pdo;
+        $this->loadConfig();
     }
-
+    
+    private function loadConfig()
+    {
+        // Load from Gibbon settings
+        $data = ['scope' => 'Transport'];
+        $sql = "SELECT name, value FROM gibbonSetting WHERE scope = :scope";
+        $stmt = $this->pdo->execute($data, $sql);
+        
+        $this->config = [
+            'api_enabled' => false,
+            'jwt_auth_enabled' => true,
+            'api_key_auth_enabled' => true,
+            'jwks_url' => '',
+            'issuer' => '',
+            'audience' => 'namosa-api',
+            'valid_api_keys' => []
+        ];
+        
+        if ($stmt->rowCount() > 0) {
+            while ($row = $stmt->fetch()) {
+                switch ($row['name']) {
+                    case 'apiEnabled':
+                        $this->config['api_enabled'] = $row['value'] === 'Y';
+                        break;
+                    case 'idpURL':
+                        $baseUrl = rtrim($row['value'], '/');
+                        $this->config['jwks_url'] = $baseUrl . '/.well-known/jwks.json';
+                        $this->config['issuer'] = $baseUrl;
+                        break;
+                    case 'apiKeys':
+                        $this->config['valid_api_keys'] = array_filter(explode(',', $row['value']));
+                        break;
+                }
+            }
+        }
+    }
+    
     /**
-     * Authenticate request using JWT or fallback to API Key
+     * Authenticate request using JWT or API Key
      */
     public function authenticate()
     {
-        // Try JWT first (from Authorization header)
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        $apiKey = $_GET['api_key'] ?? $_POST['api_key'] ?? '';
         
+        // Try JWT first
         if (!empty($authHeader) && strpos($authHeader, 'Bearer ') === 0) {
-            return $this->authenticateWithJWT();
+            return $this->authenticateJWT(substr($authHeader, 7));
         }
-
-        // Fallback to API Key
-        return $this->authenticateWithAPIKey();
+        
+        // Try API Key
+        if (!empty($apiKey) && $this->config['api_key_auth_enabled']) {
+            return $this->authenticateAPIKey($apiKey);
+        }
+        
+        return ['authenticated' => false, 'error' => 'Missing authentication'];
     }
-
-    /**
-     * JWT Authentication via NamosaAPI
-     */
-    private function authenticateWithJWT()
+    
+    private function authenticateJWT($token)
     {
-        try {
-            $configService = new NamosaConfig($this->pdo);
-            $config = $configService->get();
-
-            if (!$configService->isConfigured()) {
-                return ['success' => false, 'error' => 'JWT not configured'];
-            }
-
-            $this->authMiddleware = new AuthMiddleware($this->pdo, $config);
-            
-            if (!$this->authMiddleware->authenticate()) {
-                return ['success' => false, 'error' => $this->authMiddleware->getError()];
-            }
-
-            $this->user = $this->authMiddleware->getUserContext();
-            $this->isJWTAuth = true;
-
-            return ['success' => true];
-
-        } catch (\Exception $e) {
-            return ['success' => false, 'error' => $e->getMessage()];
+        if (!$this->config['jwt_auth_enabled'] || empty($this->config['jwks_url'])) {
+            return ['authenticated' => false, 'error' => 'JWT auth not configured'];
         }
+        
+        require_once __DIR__ . '/../../NamosaAPI/lib/JWTValidator.php';
+        
+        $jwtValidator = new JWTValidator(
+            $this->config['jwks_url'],
+            $this->config['issuer'],
+            $this->config['audience']
+        );
+        
+        $payload = $jwtValidator->validate($token);
+        
+        if (!$payload) {
+            return ['authenticated' => false, 'error' => 'Invalid token'];
+        }
+        
+        $userIdClaim = 'sub';
+        $gibbonPersonID = $payload[$userIdClaim] ?? null;
+        
+        if (!$gibbonPersonID) {
+            return ['authenticated' => false, 'error' => 'User ID not found'];
+        }
+        
+        // Verify user exists
+        $data = ['gibbonPersonID' => $gibbonPersonID];
+        $sql = "SELECT gibbonPersonID, surname, preferredName, email FROM gibbonPerson WHERE gibbonPersonID = :gibbonPersonID";
+        $stmt = $this->pdo->execute($data, $sql);
+        
+        if ($stmt->rowCount() === 0) {
+            return ['authenticated' => false, 'error' => 'User not found'];
+        }
+        
+        $user = $stmt->fetch();
+        
+        return [
+            'authenticated' => true,
+            'gibbonPersonID' => $gibbonPersonID,
+            'user' => $user,
+            'authMethod' => 'JWT'
+        ];
     }
-
-    /**
-     * Legacy API Key Authentication
-     */
-    private function authenticateWithAPIKey()
+    
+    private function authenticateAPIKey($apiKey)
     {
-        $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? $_GET['api_key'] ?? null;
-
-        if (!$apiKey) {
-            return ['success' => false, 'error' => 'Missing API key'];
+        if (!in_array($apiKey, $this->config['valid_api_keys'])) {
+            return ['authenticated' => false, 'error' => 'Invalid API key'];
         }
-
-        try {
-            $data = ['apiKey' => $apiKey];
-            $sql = "SELECT apiKeyID, name, active, gibbonPersonID 
-                    FROM gibbonTransportAPIKey 
-                    WHERE apiKey = :apiKey AND active = 1";
-
-            $stmt = $this->pdo->execute($data, $sql);
-
-            if ($stmt->rowCount() === 0) {
-                return ['success' => false, 'error' => 'Invalid API key'];
-            }
-
-            $keyData = $stmt->fetch();
-
-            // Load user if person ID is linked
-            if ($keyData['gibbonPersonID']) {
-                $this->user = [
-                    'gibbonPersonID' => $keyData['gibbonPersonID'],
-                    'roles' => ['API User'],
-                    'permissions' => ['transport_read']
-                ];
-            }
-
-            $this->isJWTAuth = false;
-
-            return ['success' => true];
-
-        } catch (\Exception $e) {
-            return ['success' => false, 'error' => 'Authentication failed'];
-        }
+        
+        return [
+            'authenticated' => true,
+            'gibbonPersonID' => null,
+            'user' => null,
+            'authMethod' => 'API_KEY'
+        ];
     }
-
+    
     /**
-     * Check permission
+     * Check permission for user
      */
-    public function hasPermission($permission)
+    public function checkPermission($gibbonPersonID, $permission)
     {
-        if (!$this->user) {
-            return false;
-        }
-
-        // Admin always has access
-        if (in_array('Admin', $this->user['roles'] ?? [])) {
+        if (!$gibbonPersonID) {
+            // API keys have full access by default
             return true;
         }
-
-        return in_array($permission, $this->user['permissions'] ?? []);
+        
+        require_once __DIR__ . '/../../NamosaAPI/lib/PermissionService.php';
+        $permissionService = new PermissionService($this->pdo);
+        $userPermissions = $permissionService->loadPermissions($gibbonPersonID);
+        
+        return $permissionService->hasPermission($userPermissions, $permission);
     }
-
+    
     /**
-     * Get current user
+     * Send JSON response
      */
-    public function getUser()
+    public function respond($data, $statusCode = 200)
     {
-        return $this->user;
+        http_response_code($statusCode);
+        header('Content-Type: application/json');
+        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+        
+        echo json_encode($data);
+        exit;
     }
-
+    
     /**
-     * Is authenticated via JWT
+     * Get pagination params
      */
-    public function isJWT()
+    public function getPaginationParams()
     {
-        return $this->isJWTAuth;
+        $limit = min((int)($_GET['limit'] ?? 50), 200);
+        $offset = max(0, (int)($_GET['offset'] ?? 0));
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        
+        if (isset($_GET['page'])) {
+            $offset = ($page - 1) * $limit;
+        }
+        
+        return ['limit' => $limit, 'offset' => $offset, 'page' => $page];
     }
 }

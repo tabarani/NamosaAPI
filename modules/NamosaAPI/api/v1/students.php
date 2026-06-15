@@ -1,27 +1,28 @@
 <?php
-/*
-NamosaAPI v1 - Students Endpoint
-GET /api/v1/students
-*/
+/**
+ * NamosaAPI v1 - Students Endpoint
+ * GET /api/v1/students
+ * 
+ * Requires: students_read permission
+ */
 
-require_once __DIR__ . '/../../../gibbon.php';
-require_once __DIR__ . '/../lib/AuthMiddleware.php';
-require_once __DIR__ . '/config.php';
-
-use Gibbon\Module\NamosaAPI\AuthMiddleware;
 use Gibbon\Module\NamosaAPI\Config;
+use Gibbon\Module\NamosaAPI\AuthMiddleware;
+use Gibbon\Module\NamosaAPI\PermissionService;
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Authorization, Content-Type');
+// Bootstrap Gibbon
+require_once __DIR__ . '/../../../gibbon.php';
 
-// Handle preflight
+// Handle CORS preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit(0);
+    http_response_code(200);
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    exit;
 }
 
-// Only allow GET for now
+// Only allow GET method
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
@@ -29,119 +30,212 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
-    // Initialize Config
-    $configService = new Config($gibbon->session->get('connection2'));
-    $config = $configService->get();
+    // Initialize configuration
+    $configObj = new Config($connection2);
+    $config = $configObj->get();
 
-    if (!$configService->isConfigured()) {
-        throw new \Exception('NamosaAPI is not configured. Please configure OIDC settings.');
+    if (!$configObj->isConfigured()) {
+        throw new Exception('NamosaAPI not configured. Please configure OIDC settings.');
     }
 
-    // Authenticate Request
-    $auth = new AuthMiddleware($gibbon->session->get('connection2'), $config);
+    // Authenticate request
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     
-    if (!$auth->authenticate()) {
+    if (empty($authHeader) || strpos($authHeader, 'Bearer ') !== 0) {
         http_response_code(401);
-        echo json_encode([
-            'error' => 'Unauthorized',
-            'message' => $auth->getError()
-        ]);
+        echo json_encode(['success' => false, 'error' => 'Missing or invalid Authorization header']);
         exit;
     }
 
-    // Check Permission
-    if (!$auth->hasPermission('students_read') && !$auth->hasRole('Admin')) {
+    $token = substr($authHeader, 7); // Remove "Bearer " prefix
+
+    // Validate JWT token
+    require_once __DIR__ . '/../lib/JWTValidator.php';
+    $jwtValidator = new JWTValidator(
+        $config['jwks_url'],
+        $config['issuer'],
+        $config['audience'],
+        $config['cache_dir']
+    );
+
+    $payload = $jwtValidator->validate($token);
+    
+    if (!$payload) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Invalid or expired token']);
+        exit;
+    }
+
+    // Extract user ID from token
+    $userIdClaim = $config['user_id_claim'] ?? 'sub';
+    $gibbonPersonID = $payload[$userIdClaim] ?? null;
+
+    if (!$gibbonPersonID) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'User ID not found in token']);
+        exit;
+    }
+
+    // Verify user exists in Gibbon
+    $data = ['gibbonPersonID' => $gibbonPersonID];
+    $sql = "SELECT gibbonPersonID, title, surname, preferredName, email, active 
+            FROM gibbonPerson 
+            WHERE gibbonPersonID = :gibbonPersonID";
+    $stmt = $connection2->execute($data, $sql);
+    
+    if ($stmt->rowCount() === 0) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'User not found in Gibbon']);
+        exit;
+    }
+
+    $currentUser = $stmt->fetch();
+
+    // Load permissions
+    require_once __DIR__ . '/../lib/PermissionService.php';
+    $permissionService = new PermissionService($connection2);
+    $userPermissions = $permissionService->loadPermissions($gibbonPersonID);
+    $userRoles = $permissionService->loadRoles($gibbonPersonID);
+
+    // Check required permission
+    $requiredPermission = 'students_read';
+    if (!$permissionService->hasPermission($userPermissions, $requiredPermission)) {
         http_response_code(403);
         echo json_encode([
-            'error' => 'Forbidden',
-            'message' => 'You do not have permission to access students data'
+            'success' => false, 
+            'error' => 'Insufficient permissions. Required: ' . $requiredPermission
         ]);
         exit;
     }
 
-    // Get Query Parameters
+    // Parse pagination and filtering parameters
     $limit = min((int)($_GET['limit'] ?? 50), 200); // Max 200
-    $offset = (int)($_GET['offset'] ?? 0);
-    $search = $_GET['search'] ?? '';
-    $status = $_GET['status'] ?? 'Full';
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    $search = trim($_GET['search'] ?? '');
+    $status = $_GET['status'] ?? 'Full'; // Full, Left, Expected
+    $yearGroup = $_GET['yearGroup'] ?? null;
+    $house = $_GET['house'] ?? null;
 
-    // Build Query
-    $data = [];
-    $sql = "SELECT 
-                p.gibbonPersonID,
-                p.username,
-                p.surname,
-                p.preferredName,
-                p.email,
-                p.status,
-                s.gibbonStudentEnrolmentID,
-                s.status AS enrolmentStatus,
-                y.name AS yearGroup,
-                f.name AS familyName
-            FROM gibbonPerson p
-            JOIN gibbonStudentEnrolment s ON p.gibbonPersonID = s.gibbonPersonID
-            JOIN gibbonYearGroup y ON s.gibbonYearGroupID = y.gibbonYearGroupID
-            LEFT JOIN gibbonFamilyMember fm ON p.gibbonPersonID = fm.gibbonPersonID
-            LEFT JOIN gibbonFamily f ON fm.gibbonFamilyID = f.gibbonFamilyID
-            WHERE p.status = :status";
+    // Build query
+    $whereConditions = [];
+    $params = [];
+
+    if ($status) {
+        $whereConditions[] = "gp.status = :status";
+        $params['status'] = $status;
+    }
+
+    if ($search) {
+        $whereConditions[] = "(gp.surname LIKE :search OR gp.preferredName LIKE :search OR gp.email LIKE :search)";
+        $params['search'] = '%' . $search . '%';
+    }
+
+    if ($yearGroup) {
+        $whereConditions[] = "gs.gibbonYearGroupID = :yearGroup";
+        $params['yearGroup'] = $yearGroup;
+    }
+
+    if ($house) {
+        $whereConditions[] = "gp.house = :house";
+        $params['house'] = $house;
+    }
+
+    // Restrict data based on user role (non-admins see limited data)
+    $isAdmin = false;
+    foreach ($userRoles as $role) {
+        if (in_array($role['nameShort'], ['Administrator', 'Admin'])) {
+            $isAdmin = true;
+            break;
+        }
+    }
+
+    $whereClause = !empty($whereConditions) ? 'WHERE ' . implode(' AND ', $whereConditions) : '';
+
+    // Get total count
+    $countSql = "SELECT COUNT(*) as total 
+                 FROM gibbonPerson gp 
+                 LEFT JOIN gibbonStudentEnrolment gs ON gp.gibbonPersonID = gs.gibbonPersonID 
+                 $whereClause";
     
-    $data['status'] = $status;
-
-    // Add search filter
-    if (!empty($search)) {
-        $sql .= " AND (p.surname LIKE :search OR p.preferredName LIKE :search OR p.email LIKE :search)";
-        $data['search'] = '%' . $search . '%';
-    }
-
-    // Add ordering
-    $sql .= " ORDER BY p.surname ASC, p.preferredName ASC";
-
-    // Add pagination
-    $sql .= " LIMIT :offset, :limit";
-    $data['offset'] = $offset;
-    $data['limit'] = $limit;
-
-    $stmt = $gibbon->session->get('connection2')->execute($data, $sql);
-
-    $students = [];
-    if ($stmt->rowCount() > 0) {
-        $students = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    // Get total count for pagination metadata
-    $countSql = "SELECT COUNT(*) as total FROM gibbonPerson p
-                 JOIN gibbonStudentEnrolment s ON p.gibbonPersonID = s.gibbonPersonID
-                 WHERE p.status = :status";
-    
-    $countData = ['status' => $status];
-    if (!empty($search)) {
-        $countSql .= " AND (p.surname LIKE :search OR p.preferredName LIKE :search OR p.email LIKE :search)";
-        $countData['search'] = '%' . $search . '%';
-    }
-
-    $countStmt = $gibbon->session->get('connection2')->execute($countData, $countSql);
+    $countStmt = $connection2->execute($params, $countSql);
     $total = $countStmt->fetch()['total'] ?? 0;
 
-    // Return Response
-    echo json_encode([
+    // Get students
+    $selectSql = "
+        SELECT 
+            gp.gibbonPersonID,
+            gp.title,
+            gp.surname,
+            gp.preferredName,
+            gp.email,
+            gp.phone1,
+            gp.phone2,
+            gp.address,
+            gp.city,
+            gp.country,
+            gp.postcode,
+            gp.gender,
+            gp.dateOfBirth,
+            gp.house,
+            gp.image_240,
+            gp.status,
+            gs.gibbonYearGroupID,
+            gy.name as yearGroupName,
+            gy.sequenceNumber as yearGroupSequence,
+            gs.gibbonSchoolYearID,
+            gsy.name as schoolYearName,
+            gc.gibbonCourseID,
+            c.nameShort as courseCode,
+            c.name as courseName
+        FROM gibbonPerson gp
+        LEFT JOIN gibbonStudentEnrolment gs ON gp.gibbonPersonID = gs.gibbonPersonID
+        LEFT JOIN gibbonYearGroup gy ON gs.gibbonYearGroupID = gy.gibbonYearGroupID
+        LEFT JOIN gibbonSchoolYear gsy ON gs.gibbonSchoolYearID = gsy.gibbonSchoolYearID
+        LEFT JOIN gibbonCourseClassPerson ccp ON gp.gibbonPersonID = ccp.gibbonPersonID
+        LEFT JOIN gibbonCourseClass cc ON ccp.gibbonCourseClassID = cc.gibbonCourseClassID
+        LEFT JOIN gibbonCourse c ON cc.gibbonCourseID = c.gibbonCourseID
+        $whereClause
+        ORDER BY gp.surname, gp.preferredName
+        LIMIT :limit OFFSET :offset
+    ";
+
+    $selectStmt = $connection2->prepare($selectSql);
+    foreach ($params as $key => $value) {
+        $selectStmt->bindValue(':' . $key, $value);
+    }
+    $selectStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $selectStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $selectStmt->execute();
+
+    $students = $selectStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format response
+    $response = [
         'success' => true,
         'data' => $students,
-        'meta' => [
-            'total' => $total,
+        'pagination' => [
+            'total' => (int)$total,
             'limit' => $limit,
             'offset' => $offset,
             'hasMore' => ($offset + $limit) < $total
         ],
-        'user' => [
-            'id' => $auth->getUserContext()['gibbonPersonID'],
-            'roles' => $auth->getUserContext()['roles']
+        'meta' => [
+            'requestedBy' => $gibbonPersonID,
+            'userRoles' => array_column($userRoles, 'nameShort'),
+            'timestamp' => date('c')
         ]
-    ]);
+    ];
 
-} catch (\Exception $e) {
+    http_response_code(200);
+    header('Content-Type: application/json');
+    echo json_encode($response);
+
+} catch (Exception $e) {
+    error_log('NamosaAPI Students Error: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'error' => 'Internal Server Error',
-        'message' => $e->getMessage()
+        'success' => false,
+        'error' => 'Internal server error',
+        'debug' => defined('DEBUG_MODE') && DEBUG_MODE ? $e->getMessage() : null
     ]);
 }

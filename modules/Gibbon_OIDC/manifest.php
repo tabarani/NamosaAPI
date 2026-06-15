@@ -20,7 +20,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 // Basic module info
-$name = 'CustomAuth';
+$name = 'Gibbon_OIDC';
 $description = 'OIDC Single Sign-On integration for seamless authentication with external Identity Provider (OpenIddict). Enables unified login across Gibbon, Moodle, and other systems.';
 $entryURL = 'login.php';
 $type = 'Additional';

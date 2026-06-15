@@ -32,7 +32,7 @@ return [
     'client_secret' => 'your-client-secret-here',
     
     // Redirect URI (this file after authentication)
-    'redirect_uri' => '/modules/CustomAuth/callback.php',
+    'redirect_uri' => '/modules/Gibbon_OIDC/callback.php',
     
     // Scopes to request
     'scopes' => 'openid profile email gibbon_id moodle_id',

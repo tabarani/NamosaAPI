@@ -26,14 +26,14 @@ $errorDescription = $_GET['error_description'] ?? '';
 // Check for errors from IdP
 if ($error) {
     $_SESSION[$guid]['message'] = __('Authentication failed: ') . $error . ' - ' . $errorDescription;
-    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/CustomAuth/login.php');
+    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/Gibbon_OIDC/login.php');
     exit;
 }
 
 // Validate state
 if (!$code || !$state || $state !== ($_SESSION['oidc_state'] ?? '')) {
     $_SESSION[$guid]['message'] = __('Invalid authentication response. Please try again.');
-    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/CustomAuth/login.php');
+    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/Gibbon_OIDC/login.php');
     exit;
 }
 
@@ -83,6 +83,6 @@ try {
     
     $_SESSION[$guid]['message'] = __('Login failed: ') . $e->getMessage();
     
-    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/CustomAuth/login.php');
+    header('Location: ' . $_SESSION[$guid]['absoluteURL'] . '/index.php?q=/modules/Gibbon_OIDC/login.php');
     exit;
 }

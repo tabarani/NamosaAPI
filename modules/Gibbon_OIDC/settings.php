@@ -5,13 +5,13 @@ Founded by Ross Parker at ICHK Secondary. Built by Ross Parker, Sandra Kuipers a
 Copyright © 2010, Gibbon Foundation
 Gibbon™, Gibbon Education Ltd. (Hong Kong)
 
-CustomAuth Module - OIDC Settings
+Gibbon OIDC Module - OIDC Settings
 */
 
 $page->title = __('OIDC Settings');
 $page->breadcrumbs->add(__('OIDC Settings'));
 
-if (!isActionAccessible($guid, $connection2, '/modules/CustomAuth/settings.php')) {
+if (!isActionAccessible($guid, $connection2, '/modules/Gibbon_OIDC/settings.php')) {
     $page->addError(__('Access denied'));
     return;
 }
@@ -19,31 +19,27 @@ if (!isActionAccessible($guid, $connection2, '/modules/CustomAuth/settings.php')
 // Handle form submission
 if (isset($_POST['submit'])) {
     $settings = [
-        'CustomAuth_idp_base_url' => $_POST['idp_base_url'] ?? '',
-        'CustomAuth_client_id' => $_POST['client_id'] ?? '',
-        'CustomAuth_client_secret' => $_POST['client_secret'] ?? '',
-        'CustomAuth_scopes' => $_POST['scopes'] ?? 'openid profile email gibbon_id',
-        'CustomAuth_auto_redirect' => isset($_POST['auto_redirect']) ? 'Y' : 'N',
-        'CustomAuth_redirect_uri' => $_POST['redirect_uri'] ?? '/modules/CustomAuth/callback.php',
-        'CustomAuth_post_logout_redirect_uri' => $_POST['post_logout_redirect_uri'] ?? '/index.php',
+        'idp_base_url' => $_POST['idp_base_url'] ?? '',
+        'client_id' => $_POST['client_id'] ?? '',
+        'client_secret' => $_POST['client_secret'] ?? '',
+        'scopes' => $_POST['scopes'] ?? 'openid profile email gibbon_id',
+        'auto_redirect' => isset($_POST['auto_redirect']) ? 'Y' : 'N',
+        'redirect_uri' => $_POST['redirect_uri'] ?? '/modules/Gibbon_OIDC/callback.php',
+        'post_logout_redirect_uri' => $_POST['post_logout_redirect_uri'] ?? '/index.php',
     ];
     
     $success = true;
-    foreach ($settings as $scope => $value) {
-        $parts = explode('_', $scope, 2);
-        $scopeName = $parts[0];
-        $settingName = $parts[1] ?? $scope;
-        
+    foreach ($settings as $name => $value) {
         // Check if setting exists
-        $check = $connection2->prepare("SELECT COUNT(*) FROM gibbonSetting WHERE scope = ? AND name = ?");
-        $check->execute([$scopeName, $settingName]);
+        $check = $connection2->prepare("SELECT COUNT(*) FROM gibbonSetting WHERE scope = 'Gibbon OIDC' AND name = ?");
+        $check->execute([$name]);
         
         if ($check->fetchColumn() > 0) {
-            $stmt = $connection2->prepare("UPDATE gibbonSetting SET value = ? WHERE scope = ? AND name = ?");
-            $result = $stmt->execute([$value, $scopeName, $settingName]);
+            $stmt = $connection2->prepare("UPDATE gibbonSetting SET value = ? WHERE scope = 'Gibbon OIDC' AND name = ?");
+            $result = $stmt->execute([$value, $name]);
         } else {
-            $stmt = $connection2->prepare("INSERT INTO gibbonSetting (scope, name, value, description) VALUES (?, ?, ?, ?)");
-            $result = $stmt->execute([$scopeName, $settingName, $value, 'CustomAuth OIDC setting']);
+            $stmt = $connection2->prepare("INSERT INTO gibbonSetting (scope, name, value, description) VALUES ('Gibbon OIDC', ?, ?, 'Gibbon OIDC setting')");
+            $result = $stmt->execute([$name, $value]);
         }
         $success = $success && $result;
     }
@@ -56,9 +52,9 @@ if (isset($_POST['submit'])) {
 }
 
 // Helper function to get setting
-function getCustomAuthSetting($connection2, $name, $default = '')
+function getGibbonOIDCSetting($connection2, $name, $default = '')
 {
-    $stmt = $connection2->prepare("SELECT value FROM gibbonSetting WHERE scope = 'CustomAuth' AND name = ?");
+    $stmt = $connection2->prepare("SELECT value FROM gibbonSetting WHERE scope = 'Gibbon OIDC' AND name = ?");
     $stmt->execute([$name]);
     $result = $stmt->fetch();
     return $result ? $result['value'] : $default;
@@ -66,13 +62,13 @@ function getCustomAuthSetting($connection2, $name, $default = '')
 
 // Load current settings
 $currentSettings = [
-    'idp_base_url' => getCustomAuthSetting($connection2, 'idp_base_url', 'https://idp.example.com'),
-    'client_id' => getCustomAuthSetting($connection2, 'client_id', 'gibbon-sso'),
-    'client_secret' => getCustomAuthSetting($connection2, 'client_secret', ''),
-    'scopes' => getCustomAuthSetting($connection2, 'scopes', 'openid profile email gibbon_id'),
-    'auto_redirect' => getCustomAuthSetting($connection2, 'auto_redirect', 'Y'),
-    'redirect_uri' => getCustomAuthSetting($connection2, 'redirect_uri', '/modules/CustomAuth/callback.php'),
-    'post_logout_redirect_uri' => getCustomAuthSetting($connection2, 'post_logout_redirect_uri', '/index.php'),
+    'idp_base_url' => getGibbonOIDCSetting($connection2, 'idp_base_url', 'https://idp.example.com'),
+    'client_id' => getGibbonOIDCSetting($connection2, 'client_id', 'gibbon-sso'),
+    'client_secret' => getGibbonOIDCSetting($connection2, 'client_secret', ''),
+    'scopes' => getGibbonOIDCSetting($connection2, 'scopes', 'openid profile email gibbon_id'),
+    'auto_redirect' => getGibbonOIDCSetting($connection2, 'auto_redirect', 'Y'),
+    'redirect_uri' => getGibbonOIDCSetting($connection2, 'redirect_uri', '/modules/Gibbon_OIDC/callback.php'),
+    'post_logout_redirect_uri' => getGibbonOIDCSetting($connection2, 'post_logout_redirect_uri', '/index.php'),
 ];
 
 ?>
@@ -88,7 +84,7 @@ $currentSettings = [
     </div>
 
     <div style="background:white;padding:30px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,0.1);">
-        <form method="post" action="<?= $_SESSION[$guid]['absoluteURL'] ?>/index.php?q=/modules/CustomAuth/settings.php">
+        <form method="post" action="<?= $_SESSION[$guid]['absoluteURL'] ?>/index.php?q=/modules/Gibbon_OIDC/settings.php">
             <input type="hidden" name="submit" value="1">
             
             <!-- Identity Provider URL -->
@@ -154,7 +150,7 @@ $currentSettings = [
                     <?= __('Redirect URI') ?>
                 </label>
                 <input type="text" name="redirect_uri" value="<?= htmlspecialchars($currentSettings['redirect_uri']) ?>"
-                       placeholder="/modules/CustomAuth/callback.php"
+                       placeholder="/modules/Gibbon_OIDC/callback.php"
                        style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box;">
                 <small style="color:#666;display:block;margin-top:5px;">
                     <?= __('Must match exactly with the redirect URI registered on your OpenIddict server') ?>

@@ -1,0 +1,7 @@
+v1.0.0
+======
+- Initial release
+- OIDC Authorization Code flow with PKCE support
+- Automatic session creation using gibbon_id claim from ID token
+- Redirect unauthenticated users to external Identity Provider
+- Settings page for configuring OIDC provider endpoints and credentials

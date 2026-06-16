@@ -25,6 +25,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
+// Initialize Rate Limiter (check before authentication)
+require_once __DIR__ . '/../lib/RateLimiter.php';
+$rateLimiter = new \Gibbon\Module\NamosaAPI\RateLimiter();
+
+// Check rate limit using IP initially (will upgrade after auth)
+if (!$rateLimiter->allowRequest(null, false)) {
+    $rateLimiter->sendRateLimitResponse();
+    exit;
+}
+
 try {
     // Initialize configuration
     require_once __DIR__ . '/config.php';
@@ -69,6 +79,12 @@ try {
     if (!$gibbonPersonID) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'User ID not found']);
+        exit;
+    }
+
+    // Re-check rate limit with authenticated status (higher limit for authenticated users)
+    if (!$rateLimiter->allowRequest($gibbonPersonID, true)) {
+        $rateLimiter->sendRateLimitResponse();
         exit;
     }
 

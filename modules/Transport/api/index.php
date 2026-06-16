@@ -27,8 +27,20 @@ if (!file_exists($configFile)) {
 
 require_once $configFile;
 
+// Initialize Rate Limiter
+require_once __DIR__ . '/../lib/RateLimiter.php';
+
 // Get API key from header
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? $_GET['api_key'] ?? null;
+
+// Check rate limit before authentication
+$rateLimiter = new \Gibbon\Module\Transport\RateLimiter(null, $apiKey);
+
+if (!$rateLimiter->allowRequest(null, $apiKey)) {
+    $rateLimiter->sendRateLimitResponse();
+    exit;
+}
+
 if (!$apiKey) {
     http_response_code(401);
     echo json_encode(['error' => 'Missing API key', 'code' => 'MISSING_API_KEY']);

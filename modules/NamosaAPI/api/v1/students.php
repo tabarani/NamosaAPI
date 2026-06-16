@@ -9,6 +9,7 @@
 use Gibbon\Module\NamosaAPI\Config;
 use Gibbon\Module\NamosaAPI\AuthMiddleware;
 use Gibbon\Module\NamosaAPI\PermissionService;
+use Gibbon\Module\NamosaAPI\RateLimiter;
 
 // Bootstrap Gibbon
 require_once __DIR__ . '/../../../gibbon.php';
@@ -26,6 +27,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);
+    exit;
+}
+
+// Initialize Rate Limiter (check before authentication)
+$rateLimiter = new RateLimiter();
+
+// Check rate limit using IP initially (will upgrade after auth)
+if (!$rateLimiter->allowRequest(null, false)) {
+    $rateLimiter->sendRateLimitResponse();
     exit;
 }
 
@@ -72,6 +82,12 @@ try {
     if (!$gibbonPersonID) {
         http_response_code(401);
         echo json_encode(['success' => false, 'error' => 'User ID not found in token']);
+        exit;
+    }
+
+    // Re-check rate limit with authenticated status (higher limit for authenticated users)
+    if (!$rateLimiter->allowRequest($gibbonPersonID, true)) {
+        $rateLimiter->sendRateLimitResponse();
         exit;
     }
 

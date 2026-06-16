@@ -4,6 +4,7 @@
  * 
  * Consolidated JWT validation using OpenSSL for RS256 tokens.
  * Supports JWKS caching with file locking to prevent race conditions.
+ * Implements Circuit Breaker pattern for resilient JWKS fetching.
  * 
  * @package Gibbon\Module\Core
  */
@@ -18,6 +19,17 @@ class JWTValidator
     private $cacheDir;
     private $cacheExpiry = 3600; // 1 hour
     private $lockTimeout = 10;   // Lock timeout in seconds
+    
+    // Circuit Breaker configuration
+    private $circuitBreakerFailureThreshold = 3;     // Failures before opening circuit
+    private $circuitBreakerResetTimeout = 60;        // Seconds before trying again (half-open)
+    private $circuitBreakerCacheExpiryGrace = 300;   // Grace period for expired cache (5 min)
+    
+    // Circuit Breaker state
+    private $circuitStateFile;
+    private $circuitState = 'closed';                // closed, open, half-open
+    private $failureCount = 0;
+    private $lastFailureTime = null;
 
     /**
      * Constructor
@@ -34,10 +46,16 @@ class JWTValidator
         $this->audience = $audience;
         $this->cacheDir = $cacheDir ?: sys_get_temp_dir() . '/gibbon_jwt_jwks';
         
+        // Circuit breaker state file
+        $this->circuitStateFile = $this->cacheDir . '/circuit_breaker_state.json';
+        
         // Ensure cache directory exists with proper permissions
         if (!is_dir($this->cacheDir)) {
             mkdir($this->cacheDir, 0755, true);
         }
+        
+        // Load circuit breaker state
+        $this->loadCircuitBreakerState();
     }
 
     /**
@@ -160,11 +178,11 @@ class JWTValidator
     }
 
     /**
-     * Get public key from JWKS (with caching and file locking)
+     * Get public key from JWKS (with caching, file locking, and circuit breaker)
      * 
      * @param string|null $kid Key ID from token header
      * @return string PEM formatted public key
-     * @throws \Exception If key not found or JWKS fetch fails
+     * @throws \\Exception If key not found or JWKS fetch fails
      */
     private function getPublicKey($kid)
     {
@@ -175,6 +193,24 @@ class JWTValidator
         // Cache file path - use hash to avoid special characters
         $cacheFile = $this->cacheDir . '/jwk_' . md5($kid) . '.pem';
         $lockFile = $cacheFile . '.lock';
+
+        // Check circuit breaker state before attempting fetch
+        $circuitState = $this->getCircuitBreakerState();
+        
+        if ($circuitState['state'] === 'open') {
+            // Circuit is open - try to use cached key even if expired
+            $cachedKey = $this->getCachedKeyWithGrace($cacheFile);
+            if ($cachedKey) {
+                error_log('[Circuit Breaker] Using cached key (grace period) for kid: ' . $kid);
+                return $cachedKey;
+            }
+            
+            // No valid cache available - fail fast
+            throw new \Exception(
+                'JWKS service unavailable (circuit open). Cached key not available.',
+                503
+            );
+        }
 
         // Try cache first (with lock to prevent race conditions)
         if (file_exists($cacheFile)) {
@@ -223,8 +259,8 @@ class JWTValidator
                 }
             }
 
-            // Fetch JWKS
-            $jwks = $this->fetchJWKS();
+            // Fetch JWKS (with circuit breaker protection)
+            $jwks = $this->fetchJWKSWithCircuitBreaker();
             
             // Find the key with matching kid
             foreach ($jwks['keys'] as $key) {
@@ -235,6 +271,9 @@ class JWTValidator
                     $tmpFile = $cacheFile . '.tmp.' . getmypid();
                     file_put_contents($tmpFile, $pem);
                     rename($tmpFile, $cacheFile);
+                    
+                    // Reset circuit breaker on success
+                    $this->recordCircuitBreakerSuccess();
                     
                     flock($lockResource, LOCK_UN);
                     fclose($lockResource);
@@ -251,6 +290,10 @@ class JWTValidator
         } catch (\Exception $e) {
             flock($lockResource, LOCK_UN);
             fclose($lockResource);
+            
+            // Record failure for circuit breaker
+            $this->recordCircuitBreakerFailure();
+            
             throw $e;
         }
     }
@@ -291,6 +334,196 @@ class JWTValidator
         }
 
         return $jwks;
+    }
+
+    /**
+     * Fetch JWKS with Circuit Breaker protection
+     * 
+     * Checks circuit breaker state before attempting fetch.
+     * In half-open state, allows one test request through.
+     * 
+     * @return array Decoded JWKS response
+     * @throws \Exception If fetch fails or circuit is open
+     */
+    private function fetchJWKSWithCircuitBreaker()
+    {
+        $circuitState = $this->getCircuitBreakerState();
+        
+        // If circuit is open, check if we should transition to half-open
+        if ($circuitState['state'] === 'open') {
+            $timeSinceFailure = time() - ($circuitState['last_failure_time'] ?? 0);
+            
+            if ($timeSinceFailure < $this->circuitBreakerResetTimeout) {
+                // Still in timeout period - fail fast
+                throw new \Exception(
+                    'Circuit breaker is OPEN. JWKS service unavailable.',
+                    503
+                );
+            }
+            
+            // Timeout elapsed - transition to half-open (will be handled by caller)
+            error_log('[Circuit Breaker] Transitioning to HALF-OPEN state for JWKS fetch');
+        }
+        
+        // Attempt fetch (circuit is closed or half-open)
+        return $this->fetchJWKS();
+    }
+
+    /**
+     * Load circuit breaker state from file
+     */
+    private function loadCircuitBreakerState()
+    {
+        if (file_exists($this->circuitStateFile)) {
+            $data = json_decode(file_get_contents($this->circuitStateFile), true);
+            if ($data) {
+                $this->failureCount = $data['failure_count'] ?? 0;
+                $this->lastFailureTime = $data['last_failure_time'] ?? null;
+                $this->circuitState = $data['state'] ?? 'closed';
+                
+                // Auto-transition from open to half-open if timeout elapsed
+                if ($this->circuitState === 'open' && $this->lastFailureTime) {
+                    $timeSinceFailure = time() - $this->lastFailureTime;
+                    if ($timeSinceFailure >= $this->circuitBreakerResetTimeout) {
+                        $this->circuitState = 'half-open';
+                        error_log('[Circuit Breaker] Auto-transitioned to HALF-OPEN state');
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get current circuit breaker state
+     * 
+     * @return array State information
+     */
+    private function getCircuitBreakerState()
+    {
+        return [
+            'state' => $this->circuitState,
+            'failure_count' => $this->failureCount,
+            'last_failure_time' => $this->lastFailureTime,
+        ];
+    }
+
+    /**
+     * Record a successful JWKS fetch
+     * Resets the circuit breaker to closed state
+     */
+    private function recordCircuitBreakerSuccess()
+    {
+        // Reset on success
+        $this->failureCount = 0;
+        $this->circuitState = 'closed';
+        $this->saveCircuitBreakerState();
+        
+        error_log('[Circuit Breaker] Success recorded - circuit CLOSED');
+    }
+
+    /**
+     * Record a failed JWKS fetch
+     * Opens circuit after threshold failures
+     */
+    private function recordCircuitBreakerFailure()
+    {
+        $this->failureCount++;
+        $this->lastFailureTime = time();
+        
+        // Check if we should open the circuit
+        if ($this->failureCount >= $this->circuitBreakerFailureThreshold) {
+            $this->circuitState = 'open';
+            error_log(
+                "[Circuit Breaker] Circuit OPENED after {$this->failureCount} failures"
+            );
+        } else {
+            error_log(
+                "[Circuit Breaker] Failure recorded ({$this->failureCount}/{$this->circuitBreakerFailureThreshold})"
+            );
+        }
+        
+        $this->saveCircuitBreakerState();
+    }
+
+    /**
+     * Save circuit breaker state to file
+     */
+    private function saveCircuitBreakerState()
+    {
+        $data = [
+            'state' => $this->circuitState,
+            'failure_count' => $this->failureCount,
+            'last_failure_time' => $this->lastFailureTime,
+            'updated_at' => time(),
+        ];
+        
+        // Atomic write using temp file
+        $tmpFile = $this->circuitStateFile . '.tmp.' . getmypid();
+        file_put_contents($tmpFile, json_encode($data, JSON_PRETTY_PRINT));
+        rename($tmpFile, $this->circuitStateFile);
+    }
+
+    /**
+     * Get cached key with grace period extension
+     * 
+     * Returns cached key even if expired, within the grace period.
+     * Used when circuit is open to provide best-effort validation.
+     * 
+     * @param string $cacheFile Path to cached key file
+     * @return string|null PEM key or null if not available
+     */
+    private function getCachedKeyWithGrace($cacheFile)
+    {
+        if (!file_exists($cacheFile)) {
+            return null;
+        }
+        
+        $age = time() - filemtime($cacheFile);
+        $maxAge = $this->cacheExpiry + $this->circuitBreakerCacheExpiryGrace;
+        
+        if ($age > $maxAge) {
+            // Cache too old even for grace period
+            return null;
+        }
+        
+        $key = file_get_contents($cacheFile);
+        return $key ?: null;
+    }
+
+    /**
+     * Manually reset circuit breaker (useful for testing or admin intervention)
+     * 
+     * @return void
+     */
+    public function resetCircuitBreaker()
+    {
+        $this->failureCount = 0;
+        $this->circuitState = 'closed';
+        $this->lastFailureTime = null;
+        $this->saveCircuitBreakerState();
+        
+        error_log('[Circuit Breaker] Manually reset to CLOSED state');
+    }
+
+    /**
+     * Get circuit breaker status for monitoring/debugging
+     * 
+     * @return array Status information
+     */
+    public function getCircuitBreakerStatus()
+    {
+        $this->loadCircuitBreakerState();
+        
+        return [
+            'state' => $this->circuitState,
+            'failure_count' => $this->failureCount,
+            'failure_threshold' => $this->circuitBreakerFailureThreshold,
+            'reset_timeout' => $this->circuitBreakerResetTimeout,
+            'last_failure_time' => $this->lastFailureTime,
+            'time_until_retry' => $this->lastFailureTime 
+                ? max(0, $this->circuitBreakerResetTimeout - (time() - $this->lastFailureTime))
+                : 0,
+        ];
     }
 
     /**

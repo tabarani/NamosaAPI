@@ -1,14 +1,26 @@
+using IdentityReconciliation.Application.Common;
 using IdentityReconciliation.Infrastructure.Data;
 using IdentityReconciliation.Infrastructure.OpenIddict;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
+using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add infrastructure services
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithEnvironmentName()
+    .WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter())
+    .WriteTo.File(new Serilog.Formatting.Json.JsonFormatter(), "logs/identity-reconciliation-.json", rollingInterval: RollingInterval.Day));
+
+// Add application and infrastructure services
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // Add ASP.NET Core Identity
@@ -81,6 +93,16 @@ builder.Services.AddHostedService<ClientSeedService>();
 
 // Add controllers and Razor Pages
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Identity Reconciliation API",
+        Version = "v1",
+        Description = "Administrative reconciliation and OpenID Connect endpoints for Namosa identity services."
+    });
+});
 builder.Services.AddRazorPages(options =>
 {
     // Protect /Admin folder with Authorization Policy requiring "Admin" role
@@ -121,7 +143,20 @@ if (!app.Environment.IsDevelopment())
 
 // Note: HTTPS is handled by Apache reverse proxy, not by Kestrel
 // app.UseHttpsRedirection();
+app.UseSerilogRequestLogging();
+
 app.UseStaticFiles();
+
+app.UseSwagger(options =>
+{
+    options.RouteTemplate = "api/docs/{documentName}/swagger.json";
+});
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/api/docs/v1/swagger.json", "Identity Reconciliation API v1");
+    options.SwaggerEndpoint("/api/docs/gibbon/swagger.json", "Namosa Gibbon PHP APIs v1");
+    options.RoutePrefix = "api/docs";
+});
 
 app.UseRouting();
 

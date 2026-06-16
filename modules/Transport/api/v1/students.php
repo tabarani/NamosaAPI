@@ -26,6 +26,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
+// Initialize Rate Limiter
+require_once __DIR__ . '/../lib/RateLimiter.php';
+
+// Get API key from request
+$apiKey = $_GET['api_key'] ?? $_POST['api_key'] ?? '';
+
+// Check rate limit before authentication
+$rateLimiter = new \Gibbon\Module\Transport\RateLimiter(null, $apiKey);
+
+if (!$rateLimiter->allowRequest(null, $apiKey)) {
+    $rateLimiter->sendRateLimitResponse();
+    exit;
+}
+
 try {
     // Initialize API handler
     require_once __DIR__ . '/../lib/TransportAPIHandler.php';
@@ -40,6 +54,12 @@ try {
             'success' => false,
             'error' => $authResult['error']
         ]);
+        exit;
+    }
+    
+    // Re-check rate limit with authenticated status (higher limit for authenticated users)
+    if (!$rateLimiter->allowRequest($authResult['gibbonPersonID'], true)) {
+        $rateLimiter->sendRateLimitResponse();
         exit;
     }
     

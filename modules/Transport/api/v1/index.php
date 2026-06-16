@@ -19,6 +19,7 @@
 
 use Gibbon\Module\Core\JWTValidator;
 use Gibbon\Module\NamosaAPI\Moodle\MoodleSyncService;
+use Gibbon\Module\Transport\RateLimiter;
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -35,9 +36,18 @@ require_once '../../../../gibbon.php';
 // Disable HTML output for API
 ob_end_clean();
 
+// Initialize Rate Limiter
+$apiKey = $_GET['api_key'] ?? $_POST['api_key'] ?? '';
+$rateLimiter = new RateLimiter(null, $apiKey);
+
+// Check rate limit before authentication
+if (!$rateLimiter->allowRequest(null, $apiKey)) {
+    $rateLimiter->sendRateLimitResponse();
+    exit;
+}
+
 // Authentication
 $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-$apiKey = $_GET['api_key'] ?? $_POST['api_key'] ?? '';
 
 $authenticated = false;
 $userData = null;
@@ -67,6 +77,12 @@ if (preg_match('/Bearer\s+(.*)/', $authHeader, $matches)) {
                 'roles' => [] // Load roles if needed
             ];
             $userData = $data;
+            
+            // Re-check rate limit with authenticated status (higher limit)
+            if (!$rateLimiter->allowRequest($gibbonPersonID, true)) {
+                $rateLimiter->sendRateLimitResponse();
+                exit;
+            }
         }
     }
 }
@@ -84,6 +100,12 @@ if (!$authenticated && !empty($apiKey)) {
             'gibbonPersonID' => $row['gibbonPersonID'],
             'roles' => [$row['role']]
         ];
+        
+        // Re-check rate limit with API key status (higher limit)
+        if (!$rateLimiter->allowRequest($apiKey, true)) {
+            $rateLimiter->sendRateLimitResponse();
+            exit;
+        }
     }
 }
 

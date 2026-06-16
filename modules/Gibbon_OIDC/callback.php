@@ -53,8 +53,10 @@ try {
     
     $claims = $oidcHelper->decodeIdToken($idToken);
     
-    // Optional: Fetch additional user info
-    // $userInfo = $oidcHelper->getUserInfo($tokens['access_token']);
+    // Add access token to claims for JIT provisioning userinfo fetch
+    if (isset($tokens['access_token'])) {
+        $claims['access_token'] = $tokens['access_token'];
+    }
     
     // Create Gibbon session
     $person = $oidcHelper->createGibbonSession($claims);

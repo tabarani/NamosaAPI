@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 // Initialize Rate Limiter (check before authentication)
-require_once __DIR__ . '/../lib/RateLimiter.php';
+require_once __DIR__ . '/../../lib/RateLimiter.php';
 $rateLimiter = new \Gibbon\Module\NamosaAPI\RateLimiter();
 
 // Check rate limit using IP initially (will upgrade after auth)

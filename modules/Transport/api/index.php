@@ -33,10 +33,10 @@ require_once __DIR__ . '/../lib/RateLimiter.php';
 // Get API key from header
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? $_GET['api_key'] ?? null;
 
-// Check rate limit before authentication
-$rateLimiter = new \Gibbon\Module\Transport\RateLimiter(null, $apiKey);
+// Check rate limit by IP BEFORE authentication (pre-auth throttling)
+$rateLimiter = new \Gibbon\Module\Transport\RateLimiter(null, null);
 
-if (!$rateLimiter->allowRequest(null, $apiKey)) {
+if (!$rateLimiter->allowRequest(null, null)) {
     $rateLimiter->sendRateLimitResponse();
     exit;
 }
@@ -75,6 +75,14 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Authentication error', 'code' => 'AUTH_ERROR']);
+    exit;
+}
+
+// Re-check rate limit with validated API key (higher limit for authenticated requests)
+$rateLimiter = new \Gibbon\Module\Transport\RateLimiter(null, $apiKey);
+
+if (!$rateLimiter->allowRequest(null, $apiKey)) {
+    $rateLimiter->sendRateLimitResponse();
     exit;
 }
 

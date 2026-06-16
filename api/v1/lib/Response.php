@@ -1,9 +1,14 @@
 <?php
 /**
  * Standardized API Response Handler
+ * 
+ * DEPRECATED: Use Gibbon\Module\Core\ApiResponse instead.
+ * This class is maintained for backward compatibility.
  */
 
 namespace NamosaAPI\Lib;
+
+use Gibbon\Module\Core\ApiResponse;
 
 class Response
 {
@@ -12,6 +17,12 @@ class Response
      */
     public static function success($data = [], $message = 'Success', $statusCode = 200, $meta = [])
     {
+        // Use new centralized ApiResponse if available
+        if (class_exists('Gibbon\\Module\\Core\\ApiResponse')) {
+            ApiResponse::success($data, $message, $statusCode, $meta);
+        }
+        
+        // Fallback to legacy implementation
         http_response_code($statusCode);
         
         $response = [
@@ -32,6 +43,12 @@ class Response
      */
     public static function error($message, $statusCode = 400, $errorCode = null, $details = null)
     {
+        // Use new centralized ApiResponse if available
+        if (class_exists('Gibbon\\Module\\Core\\ApiResponse')) {
+            ApiResponse::error($message, $statusCode, $errorCode, $details);
+        }
+        
+        // Fallback to legacy implementation
         http_response_code($statusCode);
         
         $error = [

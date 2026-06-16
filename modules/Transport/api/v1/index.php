@@ -17,6 +17,7 @@
  * - POST /api/v1/alerts - Create alert
  */
 
+use Gibbon\Module\Core\JWTValidator;
 use Gibbon\Module\NamosaAPI\Moodle\MoodleSyncService;
 
 header('Content-Type: application/json');
@@ -45,16 +46,16 @@ $userData = null;
 if (preg_match('/Bearer\s+(.*)/', $authHeader, $matches)) {
     $token = $matches[1];
     
-    // Load JWT Validator from NamosaAPI
-    require_once __DIR__ . '/../../NamosaAPI/lib/JWTValidator.php';
+    // Load consolidated JWT Validator from Core module
+    require_once __DIR__ . '/../../Core/lib/JWTValidator.php';
     
     $jwksUrl = $session->get('idpJwksUrl') ?? '';
     $issuer = $session->get('idpIssuer') ?? '';
     $audience = $session->get('idpAudience') ?? 'namosa-api';
     
     if (!empty($jwksUrl)) {
-        $validator = new \Gibbon\Module\NamosaAPI\JWTValidator($jwksUrl, $issuer, $audience);
-        $payload = $validator->validateToken($token);
+        $validator = new JWTValidator($jwksUrl, $issuer, $audience);
+        $payload = $validator->validate($token);
         
         if ($payload && isset($payload['sub'])) {
             $authenticated = true;

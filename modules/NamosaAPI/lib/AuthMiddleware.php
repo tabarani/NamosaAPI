@@ -6,7 +6,7 @@ Validates JWT from Authorization header and loads user context
 
 namespace Gibbon\Module\NamosaAPI;
 
-use Gibbon\Module\Gibbon_OIDC\JWTValidator;
+use Gibbon\Module\Core\JWTValidator;
 use Gibbon\Module\Gibbon_OIDC\PermissionService;
 
 class AuthMiddleware

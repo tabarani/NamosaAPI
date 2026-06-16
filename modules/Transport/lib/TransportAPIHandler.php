@@ -80,9 +80,9 @@ class TransportAPIHandler
             return ['authenticated' => false, 'error' => 'JWT auth not configured'];
         }
         
-        require_once __DIR__ . '/../../NamosaAPI/lib/JWTValidator.php';
+        require_once __DIR__ . '/../../Core/lib/JWTValidator.php';
         
-        $jwtValidator = new JWTValidator(
+        $jwtValidator = new \Gibbon\Module\Core\JWTValidator(
             $this->config['jwks_url'],
             $this->config['issuer'],
             $this->config['audience']

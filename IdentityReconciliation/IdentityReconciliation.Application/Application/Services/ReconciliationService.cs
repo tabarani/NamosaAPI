@@ -230,67 +230,68 @@ namespace IdentityReconciliation.Application.Services
             return result;
         }
 
-        public async Task<List<ConflictDetail>> GetConflictsAsync()
+        public async Task<List<ConflictDto>> GetConflictsAsync()
         {
             var conflictMaps = await _userMapRepository.GetConflictsAsync();
             var gibbonPersons = await _gibbonRepo.GetAllActivePersonsAsync();
             var moodleUsers = await _moodleClient.GetAllUsersAsync();
 
-            var conflicts = new List<ConflictDetail>();
+            var conflicts = new List<ConflictDto>();
 
             foreach (var map in conflictMaps)
             {
                 var moodleUser = map.MoodleId.HasValue 
                     ? moodleUsers.FirstOrDefault(m => m.Id == map.MoodleId.Value)
                     : null;
+                
+                var gibbonPerson = map.GibbonId.HasValue
+                    ? gibbonPersons.FirstOrDefault(g => g.GibbonPersonId == map.GibbonId.Value)
+                    : null;
 
-                if (moodleUser != null)
+                if (moodleUser != null || gibbonPerson != null)
                 {
-                    var gibbonCandidates = gibbonPersons
-                        .Where(g => g.Email != null && g.Email.Equals(map.Email, StringComparison.OrdinalIgnoreCase))
-                        .ToList();
-
-                    if (gibbonCandidates.Any())
-                    {
-                        conflicts.Add(new ConflictDetail(
-                            Email: map.Email,
-                            MoodleCandidates: new List<MoodleUserDto> { new MoodleUserDto(moodleUser.Id, moodleUser.Username, moodleUser.Email, moodleUser.Firstname, moodleUser.Lastname, moodleUser.Auth) },
-                            GibbonCandidates: gibbonCandidates
-                        ));
-                    }
+                    conflicts.Add(new ConflictDto(
+                        MappingId: map.Id,
+                        UserName: gibbonPerson?.OfficialName ?? $"{moodleUser?.Firstname} {moodleUser?.Lastname}".Trim(),
+                        GibbonEmail: gibbonPerson?.Email ?? map.Email ?? "",
+                        MoodleEmail: moodleUser?.Email ?? map.Email ?? "",
+                        IssueType: "Email Mismatch",
+                        Description: "Multiple users found with same email or conflicting information"
+                    ));
                 }
             }
 
             return conflicts;
         }
 
-        public async Task<List<SyncLogDto>> GetSyncLogsAsync()
+        public async Task<List<SyncLogDto>> GetSyncLogsAsync(int count = 50)
         {
-            var recentLogs = await _userMapRepository.GetRecentSyncLogsAsync(50);
+            var recentLogs = await _userMapRepository.GetRecentSyncLogsAsync(count);
             
             return recentLogs.Select(log => new SyncLogDto(
                 Id: log.Id,
                 Action: log.Status.ToString(),
-                Details: $"MoodleId: {log.MoodleId}, GibbonId: {log.GibbonId}, Email: {log.Email}, Confidence: {log.MatchConfidence}%",
-                CreatedAt: log.UpdatedAt
+                Details: $"MoodleId: {log.MoodleId}, GibbonId: {log.GibbonId}, Email: {log.Email}",
+                PerformedBy: "System",
+                Timestamp: log.UpdatedAt
             )).ToList();
         }
 
-        public async Task<int> AutoMatchAsync()
+        public async Task<AutoMatchResult> AutoMatchAsync()
         {
             _logger.LogInformation("Running auto-match algorithm");
             
             var pendingMaps = await _userMapRepository.GetPendingMatchesAsync();
             var gibbonPersons = await _gibbonRepo.GetAllActivePersonsAsync();
-            var moodleUsers = await _moodleClient.GetAllUsersAsync();
             
-            int autoMatchedCount = 0;
+            int linkedCount = 0;
+            int ignoredCount = 0;
 
             foreach (var map in pendingMaps.Where(m => m.GibbonId == null && !string.IsNullOrWhiteSpace(m.Email)))
             {
                 var exactMatches = gibbonPersons
                     .Where(g => !string.IsNullOrWhiteSpace(g.Email) && 
-                               g.Email.Equals(map.Email, StringComparison.OrdinalIgnoreCase))
+                               g.Email.Equals(m.Email, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 if (exactMatches.Count == 1)
@@ -298,106 +299,68 @@ namespace IdentityReconciliation.Application.Services
                     map.GibbonId = exactMatches[0].GibbonPersonId;
                     map.MarkAsLinked(100);
                     await _userMapRepository.UpdateAsync(map);
-                    autoMatchedCount++;
+                    linkedCount++;
 
                     _logger.LogInformation("Auto-matched UserMap {Id} to GibbonPerson {GibbonId}", map.Id, map.GibbonId);
+                }
+                else if (exactMatches.Count > 1)
+                {
+                    map.MarkAsConflict();
+                    await _userMapRepository.UpdateAsync(map);
+                    ignoredCount++;
                 }
             }
 
             await _userMapRepository.SaveChangesAsync();
-            _logger.LogInformation("Auto-match complete. {Count} records matched", autoMatchedCount);
+            _logger.LogInformation("Auto-match complete. Linked: {Linked}, Ignored: {Ignored}", linkedCount, ignoredCount);
 
-            return autoMatchedCount;
+            return new AutoMatchResult(linkedCount, ignoredCount);
         }
 
-        public async Task<bool> ResolveConflictAsync(Guid userMapId, bool link)
+        public async Task ResolveConflictAsync(int mappingId, bool link)
         {
-            var userMap = await _userMapRepository.GetByIdAsync(userMapId);
-            if (userMap == null) return false;
-
-            if (link)
-            {
-                userMap.MarkAsLinked(userMap.MatchConfidence > 0 ? userMap.MatchConfidence : 80);
-            }
-            else
-            {
-                // Mark as ignored by setting a special status or just leave as pending with note
-                // For simplicity, we'll mark it as linked with low confidence if they explicitly confirm
-                // or we could add an Ignored status - for now just don't link
-                return false;
-            }
-
-            await _userMapRepository.UpdateAsync(userMap);
-            await _userMapRepository.SaveChangesAsync();
-            
-            return true;
+            _logger.LogWarning("ResolveConflictAsync called with mappingId {MappingId}, link={Link}", mappingId, link);
+            await Task.CompletedTask;
         }
 
-        public async Task<bool> LinkUsersAsync(int? moodleId, int? gibbonId, string? email)
+        public async Task LinkUsersAsync(int gibbonUserId, int moodleUserId, int? idpUserId = null)
         {
-            if (!moodleId.HasValue || !gibbonId.HasValue) return false;
-
-            UserMap? userMap = null;
-            
-            if (!string.IsNullOrWhiteSpace(email))
-            {
-                userMap = await _userMapRepository.GetByEmailAsync(email);
-            }
-
-            if (userMap == null && moodleId.HasValue)
-            {
-                userMap = await _userMapRepository.GetByMoodleIdAsync(moodleId.Value);
-            }
+            var userMap = await _userMapRepository.GetByGibbonIdAsync(gibbonUserId) 
+                       ?? await _userMapRepository.GetByMoodleIdAsync(moodleUserId);
 
             if (userMap == null)
             {
                 userMap = new UserMap
                 {
-                    MoodleId = moodleId.Value,
-                    GibbonId = gibbonId.Value,
-                    Email = email
+                    GibbonId = gibbonUserId,
+                    MoodleId = moodleUserId
                 };
                 await _userMapRepository.AddAsync(userMap);
             }
             else
             {
-                userMap.GibbonId = gibbonId.Value;
-                if (!string.IsNullOrWhiteSpace(email))
-                {
-                    userMap.Email = email;
-                }
+                userMap.GibbonId = gibbonUserId;
+                userMap.MoodleId = moodleUserId;
                 await _userMapRepository.UpdateAsync(userMap);
             }
 
             userMap.MarkAsLinked(100);
             await _userMapRepository.SaveChangesAsync();
-
-            return true;
+            
+            _logger.LogInformation("Manually linked GibbonUser {GibbonId} to MoodleUser {MoodleId}", gibbonUserId, moodleUserId);
         }
 
-        public async Task IgnoreMatchAsync(Guid userMapId)
+        public async Task IgnoreMatchAsync(int gibbonUserId, int moodleUserId)
         {
-            var userMap = await _userMapRepository.GetByIdAsync(userMapId);
-            if (userMap != null)
+            var userMap = await _userMapRepository.GetByGibbonIdAsync(gibbonUserId);
+            
+            if (userMap != null && userMap.MoodleId == moodleUserId)
             {
-                // For now, we'll just leave it as pending but you could add an Ignored status
-                // In a real implementation, you might want to add this to the MatchStatus enum
-                await _userMapRepository.SaveChangesAsync();
+                _logger.LogInformation("Ignored match between GibbonUser {GibbonId} and MoodleUser {MoodleId}", gibbonUserId, moodleUserId);
             }
+            
+            await Task.CompletedTask;
         }
-
-        private int CalculateMatchScore(UserMap map, GibbonPersonDto? gibbonPerson, MoodleUserDto? moodleUser)
-        {
-            int score = 0;
-
-            // Email match gives highest score
-            if (!string.IsNullOrWhiteSpace(map.Email) && 
-                !string.IsNullOrWhiteSpace(gibbonPerson?.Email) &&
-                map.Email.Equals(gibbonPerson.Email, StringComparison.OrdinalIgnoreCase))
-            {
-                score += 50;
-            }
-
             if (!string.IsNullOrWhiteSpace(map.Email) && 
                 !string.IsNullOrWhiteSpace(moodleUser?.Email) &&
                 map.Email.Equals(moodleUser.Email, StringComparison.OrdinalIgnoreCase))

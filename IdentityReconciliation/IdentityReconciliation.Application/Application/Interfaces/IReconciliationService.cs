@@ -8,12 +8,12 @@ namespace IdentityReconciliation.Application.Interfaces
         Task<ReconciliationReport> ReconcileAsync();
         Task<DashboardStatsDto> GetDashboardStatsAsync();
         Task<List<PendingMatchDto>> GetPendingMatchesAsync();
-        Task<List<ConflictDetail>> GetConflictsAsync();
-        Task<List<SyncLogDto>> GetSyncLogsAsync();
-        Task<int> AutoMatchAsync();
-        Task<bool> ResolveConflictAsync(Guid userMapId, bool link);
-        Task<bool> LinkUsersAsync(int? moodleId, int? gibbonId, string? email);
-        Task IgnoreMatchAsync(Guid userMapId);
+        Task<List<ConflictDto>> GetConflictsAsync();
+        Task<List<SyncLogDto>> GetSyncLogsAsync(int count = 50);
+        Task<AutoMatchResult> AutoMatchAsync();
+        Task ResolveConflictAsync(int mappingId, bool link);
+        Task LinkUsersAsync(int gibbonUserId, int moodleUserId, int? idpUserId = null);
+        Task IgnoreMatchAsync(int gibbonUserId, int moodleUserId);
     }
 
     public record DashboardStatsDto(
@@ -25,20 +25,35 @@ namespace IdentityReconciliation.Application.Interfaces
 
     public record PendingMatchDto(
         Guid UserMapId,
-        int? GibbonId,
+        int? GibbonUserId,
         string? GibbonName,
         string? GibbonEmail,
-        int? MoodleId,
+        int? MoodleUserId,
         string? MoodleName,
         string? MoodleEmail,
         string? IdPUsername,
-        int MatchScore
+        int EmailScore
+    );
+
+    public record ConflictDto(
+        Guid MappingId,
+        string UserName,
+        string GibbonEmail,
+        string MoodleEmail,
+        string IssueType,
+        string Description
     );
 
     public record SyncLogDto(
         Guid Id,
         string Action,
         string Details,
-        DateTime CreatedAt
+        string PerformedBy,
+        DateTime Timestamp
+    );
+
+    public record AutoMatchResult(
+        int LinkedCount,
+        int IgnoredCount
     );
 }

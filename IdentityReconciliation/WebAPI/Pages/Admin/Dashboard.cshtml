@@ -1,0 +1,292 @@
+@page
+@model IdentityReconciliation.WebAPI.Pages.Admin.DashboardModel
+@{
+    ViewData["Title"] = "Reconciliation Dashboard";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6"><i class="bi bi-person-check-fill"></i> User Reconciliation Dashboard</h1>
+            <p class="text-muted">Manage user mappings between Gibbon, Moodle, and the Identity Provider.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Linked Users</h5>
+                    <h2 class="mb-0">@Model.Stats?.LinkedCount.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Pending Matches</h5>
+                    <h2 class="mb-0">@Model.Stats?.PendingCount.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Conflicts</h5>
+                    <h2 class="mb-0">@Model.Stats?.ConflictCount.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Unmatched Records</h5>
+                    <h2 class="mb-0">@Model.Stats?.UnmatchedCount.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <form method="post" asp-page-handler="RunAutoMatch" class="d-inline">
+                <button type="submit" class="btn btn-primary btn-lg" onclick="return confirm('Are you sure you want to run the auto-match algorithm? This may take some time.')">
+                    <i class="bi bi-play-circle"></i> Run Auto-Match Now
+                </button>
+            </form>
+            <button class="btn btn-outline-secondary btn-lg ms-2" type="button" data-bs-toggle="refresh">
+                <i class="bi bi-arrow-clockwise"></i> Refresh Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabbed Interface -->
+    <ul class="nav nav-tabs" id="reconciliationTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                Pending Matches (@Model.PendingMatches?.Count.ToString() ?? "0")
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="conflicts-tab" data-bs-toggle="tab" data-bs-target="#conflicts" type="button" role="tab">
+                Conflicts (@Model.Conflicts?.Count.ToString() ?? "0")
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab">
+                Sync Logs
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content border border-top-0 p-4 bg-white" id="reconciliationTabsContent">
+        
+        <!-- Pending Matches Tab -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel">
+            <h4>Pending Matches</h4>
+            <p class="text-muted">Users found in both Gibbon and Moodle that are likely the same person but not yet linked.</p>
+            
+            @if (Model.PendingMatches != null && Model.PendingMatches.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Gibbon User</th>
+                                <th>Moodle User</th>
+                                <th>IdP Username</th>
+                                <th>Email Match Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var match in Model.PendingMatches)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@match.GibbonName</strong><br>
+                                        <small class="text-muted">@match.GibbonEmail</small>
+                                    </td>
+                                    <td>
+                                        <strong>@match.MoodleName</strong><br>
+                                        <small class="text-muted">@match.MoodleEmail</small>
+                                    </td>
+                                    <td>@match.IdPUsername</td>
+                                    <td>
+                                        @if (match.EmailScore >= 90)
+                                        {
+                                            <span class="badge bg-success">@match.EmailScore%</span>
+                                        }
+                                        else if (match.EmailScore >= 70)
+                                        {
+                                            <span class="badge bg-warning text-dark">@match.EmailScore%</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">@match.EmailScore%</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <form method="post" asp-page-handler="LinkUsers" class="d-inline">
+                                            <input type="hidden" name="gibbonUserId" value="@match.GibbonUserId" />
+                                            <input type="hidden" name="moodleUserId" value="@match.MoodleUserId" />
+                                            <input type="hidden" name="idpUserId" value="@match.IdPUserId" />
+                                            <button type="submit" class="btn btn-sm btn-success">
+                                                <i class="bi bi-link-45deg"></i> Link
+                                            </button>
+                                        </form>
+                                        <form method="post" asp-page-handler="IgnoreMatch" class="d-inline ms-1">
+                                            <input type="hidden" name="gibbonUserId" value="@match.GibbonUserId" />
+                                            <input type="hidden" name="moodleUserId" value="@match.MoodleUserId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-x-circle"></i> Ignore
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">No pending matches found. Great job!</div>
+            }
+        </div>
+
+        <!-- Conflicts Tab -->
+        <div class="tab-pane fade" id="conflicts" role="tabpanel">
+            <h4>Conflicts</h4>
+            <p class="text-muted">Records with mismatched information requiring manual review.</p>
+            
+            @if (Model.Conflicts != null && Model.Conflicts.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Gibbon Email</th>
+                                <th>Moodle Email</th>
+                                <th>Issue</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var conflict in Model.Conflicts)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@conflict.UserName</strong><br>
+                                        <small class="text-muted">ID: @conflict.MappingId</small>
+                                    </td>
+                                    <td class="text-danger">@conflict.GibbonEmail</td>
+                                    <td class="text-danger">@conflict.MoodleEmail</td>
+                                    <td>
+                                        <span class="badge bg-danger">@conflict.IssueType</span>
+                                        <br><small>@conflict.Description</small>
+                                    </td>
+                                    <td>
+                                        <form method="post" asp-page-handler="ResolveConflict" class="d-inline">
+                                            <input type="hidden" name="mappingId" value="@conflict.MappingId" />
+                                            <input type="hidden" name="resolution" value="link" />
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Force link these users despite the conflict?')">
+                                                <i class="bi bi-exclamation-triangle"></i> Force Link
+                                            </button>
+                                        </form>
+                                        <form method="post" asp-page-handler="ResolveConflict" class="d-inline ms-1">
+                                            <input type="hidden" name="mappingId" value="@conflict.MappingId" />
+                                            <input type="hidden" name="resolution" value="ignore" />
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                                <i class="bi bi-x-circle"></i> Ignore
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">No conflicts found.</div>
+            }
+        </div>
+
+        <!-- Sync Logs Tab -->
+        <div class="tab-pane fade" id="logs" role="tabpanel">
+            <h4>Recent Sync Logs</h4>
+            <p class="text-muted">History of reconciliation actions performed by the system or admins.</p>
+            
+            @if (Model.SyncLogs != null && Model.SyncLogs.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Details</th>
+                                <th>Performed By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in Model.SyncLogs)
+                            {
+                                <tr>
+                                    <td><small>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</small></td>
+                                    <td>
+                                        @if (log.Action.Contains("Auto", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge bg-primary">@log.Action</span>
+                                        }
+                                        else if (log.Action.Contains("Manual", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge bg-success">@log.Action</span>
+                                        }
+                                        else if (log.Action.Contains("Error", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge bg-danger">@log.Action</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">@log.Action</span>
+                                        }
+                                    </td>
+                                    <td><small>@log.Details</small></td>
+                                    <td><small>@log.PerformedBy</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">No sync logs available.</div>
+            }
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh every 60 seconds
+        setInterval(function() {
+            location.reload();
+        }, 60000);
+    </script>
+}

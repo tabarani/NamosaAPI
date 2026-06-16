@@ -46,13 +46,12 @@ try {
 
     $token = substr($authHeader, 7);
 
-    // Validate JWT token
-    require_once __DIR__ . '/../lib/JWTValidator.php';
-    $jwtValidator = new JWTValidator(
+    // Validate JWT token using consolidated Core module validator
+    require_once __DIR__ . '/../../Core/lib/JWTValidator.php';
+    $jwtValidator = new \Gibbon\Module\Core\JWTValidator(
         $config['jwks_url'],
         $config['issuer'],
-        $config['audience'],
-        $config['cache_dir']
+        $config['audience']
     );
 
     $payload = $jwtValidator->validate($token);

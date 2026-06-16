@@ -1,0 +1,21 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Namosa Gibbon PHP APIs",
+    "version": "v1",
+    "description": "Static OpenAPI description for the PHP API endpoints exposed by the Namosa Gibbon modules."
+  },
+  "servers": [{ "url": "/api/v1" }],
+  "paths": {
+    "/students": { "get": { "summary": "List students", "responses": { "200": { "description": "Student list" } } } },
+    "/staff": { "get": { "summary": "List staff", "responses": { "200": { "description": "Staff list" } } } },
+    "/courses": { "get": { "summary": "List courses", "responses": { "200": { "description": "Course list" } } } },
+    "/auth/login": { "post": { "summary": "Authenticate API client", "responses": { "200": { "description": "JWT issued" }, "401": { "description": "Invalid credentials" } } } }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

@@ -81,7 +81,11 @@ builder.Services.AddHostedService<ClientSeedService>();
 
 // Add controllers and Razor Pages
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    // Protect /Admin folder with Authorization Policy requiring "Admin" role
+    options.Conventions.AuthorizeFolder("/Admin", "Admin");
+});
 
 // Add CORS policy — restrict to known origins in production
 builder.Services.AddCors(options =>

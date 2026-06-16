@@ -57,5 +57,32 @@ namespace IdentityReconciliation.Infrastructure.Data
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task<int> CountByStatusAsync(Domain.Enums.MatchStatus status)
+        {
+            return await _context.UserMaps.CountAsync(u => u.Status == status);
+        }
+
+        public async Task<List<UserMap>> GetPendingMatchesAsync()
+        {
+            return await _context.UserMaps
+                .Where(u => u.Status == Domain.Enums.MatchStatus.Pending)
+                .ToListAsync();
+        }
+
+        public async Task<List<UserMap>> GetConflictsAsync()
+        {
+            return await _context.UserMaps
+                .Where(u => u.Status == Domain.Enums.MatchStatus.Conflict)
+                .ToListAsync();
+        }
+
+        public async Task<List<UserMap>> GetRecentSyncLogsAsync(int count = 50)
+        {
+            return await _context.UserMaps
+                .OrderByDescending(u => u.UpdatedAt)
+                .Take(count)
+                .ToListAsync();
+        }
     }
 }

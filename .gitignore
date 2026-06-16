@@ -1,1 +1,2 @@
 Nothing should be ignored based on the provided file changes, as they consist only of PHP source files and API-related code without any build artifacts, dependencies, or temporary files that require ignoring.
+Nothing should be ignored based on the provided file changes, as they only include source code files (.php) and no build artifacts, dependencies, or temporary files.

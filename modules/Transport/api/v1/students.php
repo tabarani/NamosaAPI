@@ -58,7 +58,7 @@ try {
     }
     
     // Re-check rate limit with authenticated status (higher limit for authenticated users)
-    if (!$rateLimiter->allowRequest($authResult['gibbonPersonID'], true)) {
+    if (!$rateLimiter->allowRequest($authResult['gibbonPersonID'], $apiKey)) {
         $rateLimiter->sendRateLimitResponse();
         exit;
     }

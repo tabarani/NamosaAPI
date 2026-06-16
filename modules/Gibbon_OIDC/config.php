@@ -51,4 +51,11 @@ return [
     
     // Auto-redirect unauthenticated users to IdP (true) or show login button (false)
     'auto_redirect' => true,
+    
+    // JIT Provisioning: Automatically create gibbonPerson records for new users
+    'jit_provisioning' => false,
+    
+    // Trusted IdPs: List of IdP base URLs allowed to trigger JIT provisioning
+    // Empty array means all configured IdPs are trusted (for backward compatibility)
+    'trusted_idps' => [],
 ];

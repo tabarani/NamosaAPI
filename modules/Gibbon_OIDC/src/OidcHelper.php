@@ -52,6 +52,8 @@ class OidcHelper
                 'post_logout_redirect_uri' => $settings['post_logout_redirect_uri'] ?? $defaults['post_logout_redirect_uri'],
                 'session_timeout' => $defaults['session_timeout'],
                 'auto_redirect' => ($settings['auto_redirect'] ?? $defaults['auto_redirect']) === 'Y',
+                'jit_provisioning' => ($settings['jit_provisioning'] ?? $defaults['jit_provisioning']) === 'Y',
+                'trusted_idps' => isset($settings['trusted_idps']) ? explode(',', $settings['trusted_idps']) : ($defaults['trusted_idps'] ?? []),
             ];
         } catch (Exception $e) {
             // Fallback to defaults if database not available
@@ -207,6 +209,186 @@ class OidcHelper
     }
 
     /**
+     * Check if the current IdP is trusted for JIT provisioning
+     */
+    private function isTrustedIdp()
+    {
+        // If no trusted IdPs are configured, allow all (for backward compatibility)
+        if (empty($this->config['trusted_idps'])) {
+            return true;
+        }
+
+        // Check if current IdP base URL is in the trusted list
+        $currentIdp = rtrim($this->config['idp_base_url'], '/');
+        foreach ($this->config['trusted_idps'] as $trustedIdp) {
+            $trustedIdp = trim($trustedIdp);
+            if (!empty($trustedIdp) && rtrim($trustedIdp, '/') === $currentIdp) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Create a new user via JIT provisioning
+     */
+    private function createJitUser($claims, $gibbonId)
+    {
+        // Fetch additional user info from userinfo endpoint if available
+        $userInfo = [];
+        if (isset($claims['access_token'])) {
+            try {
+                $userInfo = $this->getUserInfo($claims['access_token']);
+            } catch (Exception $e) {
+                error_log('OIDC JIT: Failed to fetch userinfo: ' . $e->getMessage());
+                // Continue with claims data only
+            }
+        }
+
+        // Extract user details from claims or userinfo
+        $givenName = $this->sanitizeInput($userInfo['given_name'] ?? $claims['given_name'] ?? '');
+        $familyName = $this->sanitizeInput($userInfo['family_name'] ?? $claims['family_name'] ?? '');
+        $email = $this->sanitizeInput($userInfo['email'] ?? $claims['email'] ?? '');
+        $preferredUsername = $this->sanitizeInput($userInfo['preferred_username'] ?? $claims['preferred_username'] ?? '');
+
+        // Validate required fields
+        if (empty($email)) {
+            throw new Exception('JIT Provisioning failed: Email is required');
+        }
+
+        // Generate username from preferred_username or email
+        $username = !empty($preferredUsername) ? $preferredUsername : explode('@', $email)[0];
+        $username = $this->sanitizeUsername($username);
+
+        // Ensure username is unique
+        $username = $this->generateUniqueUsername($username);
+
+        // Generate a random password (user will login via SSO only)
+        $randomPassword = bin2hex(random_bytes(16));
+        $passwordHash = password_hash($randomPassword, PASSWORD_DEFAULT);
+
+        // Determine name if not provided
+        if (empty($givenName)) {
+            $givenName = 'OIDC';
+        }
+        if (empty($familyName)) {
+            $familyName = 'User';
+        }
+
+        // Get current school year for enrollment
+        $schoolYearId = $this->getCurrentSchoolYear();
+
+        // Insert new gibbonPerson record
+        $insertStmt = $this->connection2->prepare("
+            INSERT INTO gibbonPerson (
+                username, 
+                password, 
+                surname, 
+                firstName, 
+                email, 
+                status, 
+                canLoginTo, 
+                gibbonSchoolYearID,
+                dateAdded
+            ) VALUES (?, ?, ?, ?, ?, 'Full', 'Y', ?, NOW())
+        ");
+        $insertStmt->execute([
+            $username,
+            $passwordHash,
+            $familyName,
+            $givenName,
+            $email,
+            $schoolYearId,
+        ]);
+
+        $newGibbonPersonId = $this->connection2->lastInsertId();
+
+        if (!$newGibbonPersonId) {
+            throw new Exception('JIT Provisioning failed: Could not create user record');
+        }
+
+        // Log successful JIT creation
+        error_log('OIDC JIT: Created new user ' . $username . ' (ID: ' . $newGibbonPersonId . ') from IdP');
+
+        // Return the newly created person record
+        $selectStmt = $this->connection2->prepare("
+            SELECT * FROM gibbonPerson 
+            WHERE gibbonPersonID = ?
+        ");
+        $selectStmt->execute([$newGibbonPersonId]);
+        $person = $selectStmt->fetch();
+
+        if (!$person) {
+            throw new Exception('JIT Provisioning failed: Could not retrieve created user');
+        }
+
+        return $person;
+    }
+
+    /**
+     * Sanitize input string for database insertion
+     */
+    private function sanitizeInput($input)
+    {
+        if ($input === null) {
+            return '';
+        }
+        // Remove control characters and trim whitespace
+        $input = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $input);
+        return trim($input);
+    }
+
+    /**
+     * Sanitize username to meet Gibbon requirements
+     */
+    private function sanitizeUsername($username)
+    {
+        // Only allow alphanumeric characters, underscores, dots, and hyphens
+        $username = preg_replace('/[^a-zA-Z0-9._-]/', '', $username);
+        // Ensure it's not empty after sanitization
+        if (empty($username)) {
+            $username = 'user_' . substr(md5(uniqid()), 0, 8);
+        }
+        // Limit length
+        return substr($username, 0, 50);
+    }
+
+    /**
+     * Generate a unique username by appending numbers if needed
+     */
+    private function generateUniqueUsername($baseUsername)
+    {
+        $username = $baseUsername;
+        $counter = 1;
+
+        while ($this->usernameExists($username)) {
+            $username = $baseUsername . '_' . $counter;
+            $counter++;
+            
+            // Prevent infinite loop
+            if ($counter > 1000) {
+                $username = 'user_' . substr(md5(uniqid()), 0, 8);
+                break;
+            }
+        }
+
+        return $username;
+    }
+
+    /**
+     * Check if a username already exists in the database
+     */
+    private function usernameExists($username)
+    {
+        $stmt = $this->connection2->prepare("
+            SELECT COUNT(*) FROM gibbonPerson WHERE username = ?
+        ");
+        $stmt->execute([$username]);
+        return $stmt->fetchColumn() > 0;
+    }
+
+    /**
      * Create Gibbon session from OIDC claims
      */
     public function createGibbonSession($claims)
@@ -227,7 +409,12 @@ class OidcHelper
         $person = $stmt->fetch();
 
         if (!$person) {
-            throw new Exception('User not found in Gibbon database (ID: ' . $gibbonId . ')');
+            // JIT Provisioning: Auto-create user if enabled and IdP is trusted
+            if ($this->config['jit_provisioning'] && $this->isTrustedIdp()) {
+                $person = $this->createJitUser($claims, $gibbonId);
+            } else {
+                throw new Exception('User not found in Gibbon database (ID: ' . $gibbonId . ')');
+            }
         }
 
         // Fetch user's role categories
@@ -237,7 +424,7 @@ class OidcHelper
             INNER JOIN gibbonRole ON gibbonPersonRole.gibbonRoleID = gibbonRole.gibbonRoleID 
             WHERE gibbonPersonRole.gibbonPersonID = ?
         ");
-        $roleStmt->execute([$gibbonId]);
+        $roleStmt->execute([$person['gibbonPersonID']]);
         $roles = $roleStmt->fetchAll(PDO::FETCH_COLUMN);
 
         // Create session (mimics Gibbon's native login)
@@ -259,7 +446,7 @@ class OidcHelper
             SET lastLogin = NOW() 
             WHERE gibbonPersonID = ?
         ");
-        $updateStmt->execute([$gibbonId]);
+        $updateStmt->execute([$person['gibbonPersonID']]);
 
         return $person;
     }

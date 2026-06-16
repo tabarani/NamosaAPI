@@ -1,0 +1,41 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Transport Module REST API",
+    "version": "1.3.0",
+    "description": "REST endpoints for student transport safety, parent status, boarding, alerts, tracking, planning, billing, incidents, and integrations."
+  },
+  "servers": [{ "url": "/modules/Transport/api/v1/index.php?path=" }],
+  "security": [{ "bearerAuth": [] }, { "apiKeyQuery": [] }],
+  "paths": {
+    "/transport-status/child/{gibbonPersonID}": { "get": { "summary": "Get a child's current transport status", "parameters": [{ "name": "gibbonPersonID", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Assignment, latest events, and active alerts" } } } },
+    "/boarding/route/{routeID}": { "get": { "summary": "Get route boarding checklist", "parameters": [{ "name": "routeID", "in": "path", "required": true, "schema": { "type": "integer" } }], "responses": { "200": { "description": "Route checklist" } } } },
+    "/boarding/events": { "post": { "summary": "Record a pickup or dropoff event", "responses": { "201": { "description": "Boarding event recorded" }, "422": { "description": "Invalid event payload" } } } },
+    "/notifications": { "post": { "summary": "Queue a transport notification", "responses": { "201": { "description": "Notification queued" } } } },
+    "/missing-alerts": { "get": { "summary": "List unresolved missing boarding/dropoff alerts", "responses": { "200": { "description": "Missing alerts" } } } },
+    "/missing-alerts/run": { "post": { "summary": "Detect assigned students without today's transport event", "responses": { "200": { "description": "Alert generation result" } } } },
+    "/supervisor/routes/{routeID}": { "get": { "summary": "Get supervisor mobile route payload", "responses": { "200": { "description": "Route and checklist" } } } },
+    "/sync/offline-events": { "post": { "summary": "Sync offline mobile transport events", "responses": { "200": { "description": "Sync result" } } } },
+    "/tracking/locations": { "post": { "summary": "Record a vehicle GPS location", "responses": { "201": { "description": "Location recorded" } } } },
+    "/tracking/vehicles/{routeID}": { "get": { "summary": "Get latest vehicle location for a route", "responses": { "200": { "description": "Latest vehicle position" } } } },
+    "/eta/route/{routeID}": { "get": { "summary": "Get route stop ETA context", "responses": { "200": { "description": "Stop schedule with latest event context" } } } },
+    "/planning/routes": { "get": { "summary": "Get route capacity planning summary", "responses": { "200": { "description": "Capacity report" } } } },
+    "/vehicles": { "get": { "summary": "List fleet vehicles", "responses": { "200": { "description": "Vehicles" } } }, "post": { "summary": "Create vehicle metadata", "responses": { "201": { "description": "Vehicle created" } } } },
+    "/emergency": { "post": { "summary": "Raise emergency alert", "responses": { "201": { "description": "Emergency alert created" } } } },
+    "/incidents": { "get": { "summary": "List transport incidents", "responses": { "200": { "description": "Incidents" } } }, "post": { "summary": "Record transport incident", "responses": { "201": { "description": "Incident recorded" } } } },
+    "/pickup-rules": { "get": { "summary": "List pickup rules", "responses": { "200": { "description": "Pickup rules" } } }, "post": { "summary": "Create pickup authorization or restriction", "responses": { "201": { "description": "Pickup rule created" } } } },
+    "/qr/resolve": { "post": { "summary": "Resolve QR token to transport assignment", "responses": { "200": { "description": "Resolved assignment" } } } },
+    "/photos": { "post": { "summary": "Attach photo evidence to transport event", "responses": { "201": { "description": "Photo attached" } } } },
+    "/billing": { "get": { "summary": "List transport billing records", "responses": { "200": { "description": "Billing records" } } }, "post": { "summary": "Create transport billing record", "responses": { "201": { "description": "Billing record created" } } } },
+    "/reports/{reportName}": { "get": { "summary": "Get capacity, late-events, or alerts report", "responses": { "200": { "description": "Report" } } } },
+    "/audit-logs": { "get": { "summary": "List transport audit logs", "responses": { "200": { "description": "Audit logs" } } } },
+    "/integrations/oneroster/export": { "get": { "summary": "Export roster-aligned transport assignment data", "responses": { "200": { "description": "OneRoster-inspired export" } } } },
+    "/scenarios": { "get": { "summary": "List implemented feature scenarios", "responses": { "200": { "description": "Scenario catalogue" } } } }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" },
+      "apiKeyQuery": { "type": "apiKey", "in": "query", "name": "api_key" }
+    }
+  }
+}

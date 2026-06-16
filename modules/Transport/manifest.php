@@ -12,7 +12,7 @@ $description = 'Student transportation management with safety tracking, SMS aler
 $entryURL = 'index.php';
 $type = 'Additional';
 $category = 'Students';
-$version = '1.2.0';
+$version = '1.3.0';
 $author = 'Yulpana Edutech / Mustafa';
 $url = 'https://yulpana.com';
 

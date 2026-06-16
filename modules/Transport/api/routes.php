@@ -30,7 +30,23 @@ $action = $_GET['action'] ?? 'list';
 
 try {
     if ($action === 'list' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        // Get all active routes with basic info
+        // Pagination parameters
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $perPage = max(1, min(100, (int)($_GET['per_page'] ?? 20))); // Default 20, max 100
+        $offset = ($page - 1) * $perPage;
+        
+        // Get total count for pagination metadata
+        $countStmt = $mysqli->prepare("
+            SELECT COUNT(*) as total
+            FROM gibbonTransportRoute r
+            WHERE r.active = 1
+        ");
+        $countStmt->execute();
+        $totalResult = $countStmt->get_result();
+        $total = (int)$totalResult->fetch_assoc()['total'];
+        $totalPages = ceil($total / $perPage);
+        
+        // Get paginated routes with basic info
         $stmt = $mysqli->prepare("
             SELECT r.gibbonTransportRouteID, r.name, r.nameShort, r.routeType, 
                    r.vehicleNumber, r.vehicleType, r.capacity, r.driverID, r.driverPhone,
@@ -42,8 +58,10 @@ try {
             LEFT JOIN gibbonPerson s ON r.gibbonPersonIDSupervisor = s.gibbonPersonID
             WHERE r.active = 1
             ORDER BY r.name
+            LIMIT ? OFFSET ?
         ");
         
+        $stmt->bind_param('ii', $perPage, $offset);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -69,8 +87,13 @@ try {
         
         echo json_encode([
             'success' => true,
-            'count' => count($routes),
-            'routes' => $routes
+            'data' => $routes,
+            'meta' => [
+                'total' => $total,
+                'page' => $page,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages
+            ]
         ]);
         exit;
     }

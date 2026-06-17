@@ -197,21 +197,21 @@ $currentSettings = [
     </div>
 
     <!-- Integration Guide -->
-    <div style="background:#fff3e0;padding:25px;border-radius:8px;margin-top:30px;border:2px solid #ff9800;">
-        <h3 style="margin-top:0;color:#e65100;display:flex;align-items:center;gap:10px;">
-            <span>📖</span>
-            <?= __('OpenIddict Server Setup') ?>
-        </h3>
-        <ol style="color:#795548;line-height:1.8;">
-            <li><?= __('Register a new client on your OpenIddict server') ?></li>
-            <li><?= __('Set client_id to: <code>') . htmlspecialchars($currentSettings['client_id']) . '</code></li>
-            <li><?= __('Set redirect_uri to: <code>') . $_SESSION[$guid]['absoluteURL'] . htmlspecialchars($currentSettings['redirect_uri']) . '</code></li>
-            <li><?= __('Enable Authorization Code flow with PKCE') ?></li>
-            <li><?= __('Allow scopes: <code>openid profile email gibbon_id moodle_id</code></li>
-            <li><?= __('Ensure the ID token includes the <code>gibbon_id</code> claim') ?></li>
-            <li><?= __('Configure the UserMap entity in your .NET application to link users') ?></li>
-        </ol>
-    </div>
+   <div style="background:#fff3e0;padding:25px;border-radius:8px;margin-top:30px;border:2px solid #ff9800;">
+    <h3 style="margin-top:0;color:#e65100;display:flex;align-items:center;gap:10px;">
+        <span>📖</span>
+        <?= __('OpenIddict Server Setup') ?>
+    </h3>
+    <ol style="color:#795548;line-height:1.8;">
+        <li><?= __('Register a new client on your OpenIddict server') ?></li>
+        <li><?= __('Set client_id to: <code>') . htmlspecialchars($currentSettings['client_id']) . '</code>' ?></li>
+        <li><?= __('Set redirect_uri to: <code>') . $_SESSION[$guid]['absoluteURL'] . htmlspecialchars($currentSettings['redirect_uri']) . '</code>' ?></li>
+        <li><?= __('Enable Authorization Code flow with PKCE') ?></li>
+        <li><?= __('Allow scopes: <code>openid profile email gibbon_id moodle_id</code>') ?></li>
+        <li><?= __('Ensure the ID token includes the <code>gibbon_id</code> claim') ?></li>
+        <li><?= __('Configure the UserMap entity in your .NET application to link users') ?></li>
+    </ol>
+</div>
 </div>
 
 <script>

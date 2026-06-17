@@ -10,6 +10,9 @@ $page->title = __('Transport Reports');
 $page->breadcrumbs->add(__('Transport'), 'index.php');
 $page->breadcrumbs->add(__('Reports'));
 
+require_once __DIR__ . '/lib/TransportSchema.php';
+transportEnsureCompatibilitySchema($connection2);
+
 if (!isActionAccessible($guid, $connection2, '/modules/Transport/reports_routes.php')) {
     $page->addError(__('Access denied'));
     return;
@@ -21,20 +24,107 @@ $dateFrom = $_GET['dateFrom'] ?? date('Y-m-01');
 $dateTo = $_GET['dateTo'] ?? date('Y-m-t');
 $routeID = $_GET['route'] ?? 'all';
 
+
+function buildTransportReportRows(PDO $connection2, string $reportType, string $dateFrom, string $dateTo, string $routeID): array
+{
+    $routeFilter = '';
+    if ($routeID !== 'all') {
+        $routeFilter = ' AND e.gibbonTransportRouteID = ' . (int)$routeID;
+    }
+
+    if ($reportType === 'attendance') {
+        return $connection2->query("\n            SELECT DATE(e.timestamp) AS reportDate,\n                   COUNT(DISTINCT CASE WHEN e.type = 'pickup' THEN e.gibbonPersonID END) AS pickups,\n                   COUNT(DISTINCT CASE WHEN e.type = 'dropoff' THEN e.gibbonPersonID END) AS dropoffs,\n                   COUNT(DISTINCT CASE WHEN e.status = 'Absent' THEN e.gibbonPersonID END) AS absent,\n                   COUNT(DISTINCT CASE WHEN e.emergencyFlag = 1 THEN e.gibbonTransportEventID END) AS emergencies\n            FROM gibbonTransportEvent e\n            WHERE DATE(e.timestamp) BETWEEN " . $connection2->quote($dateFrom) . " AND " . $connection2->quote($dateTo) . $routeFilter . "\n            GROUP BY DATE(e.timestamp)\n            ORDER BY reportDate DESC\n        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    if ($reportType === 'safety') {
+        $routeFilter = $routeID !== 'all' ? ' AND a.gibbonTransportRouteID = ' . (int)$routeID : '';
+        return $connection2->query("\n            SELECT a.timestampCreated, a.alertType, a.severity, COALESCE(r.name, 'All Routes') AS routeName, a.message,\n                   CASE WHEN a.resolved = 1 THEN 'Resolved' ELSE 'Open' END AS status\n            FROM gibbonTransportAlert a\n            LEFT JOIN gibbonTransportRoute r ON a.gibbonTransportRouteID = r.gibbonTransportRouteID\n            WHERE DATE(a.timestampCreated) BETWEEN " . $connection2->quote($dateFrom) . " AND " . $connection2->quote($dateTo) . $routeFilter . "\n            ORDER BY a.timestampCreated DESC\n        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    if ($reportType === 'utilization') {
+        return $connection2->query("\n            SELECT r.name, r.nameShort, r.capacity, r.vehicleType,\n                   COUNT(ts.gibbonTransportStudentID) AS studentCount,\n                   ROUND(COUNT(ts.gibbonTransportStudentID) / NULLIF(r.capacity, 0) * 100, 1) AS utilization,\n                   COUNT(DISTINCT s.gibbonTransportStopID) AS stopCount\n            FROM gibbonTransportRoute r\n            LEFT JOIN gibbonTransportStudent ts ON r.gibbonTransportRouteID = ts.gibbonTransportRouteID AND ts.status = 'Active'\n            LEFT JOIN gibbonTransportStop s ON r.gibbonTransportRouteID = s.gibbonTransportRouteID AND s.active = 1\n            WHERE r.active = 1\n            GROUP BY r.gibbonTransportRouteID\n            ORDER BY utilization DESC\n        ")->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    return [[
+        'metric' => 'Active Routes',
+        'value' => $connection2->query("SELECT COUNT(*) FROM gibbonTransportRoute WHERE active = 1")->fetchColumn()
+    ], [
+        'metric' => 'Assigned Students',
+        'value' => $connection2->query("SELECT COUNT(*) FROM gibbonTransportStudent WHERE status = 'Active'")->fetchColumn()
+    ], [
+        'metric' => 'Active Stops',
+        'value' => $connection2->query("SELECT COUNT(*) FROM gibbonTransportStop WHERE active = 1")->fetchColumn()
+    ], [
+        'metric' => 'Events Today',
+        'value' => $connection2->query("SELECT COUNT(*) FROM gibbonTransportEvent WHERE DATE(timestamp) = CURDATE()")->fetchColumn()
+    ]];
+}
+
+function outputTransportReportExport(array $rows, string $format, string $reportType): void
+{
+    $filename = 'transport-' . $reportType . '-' . date('Ymd-His');
+    if ($format === 'pdf') {
+        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '.html"');
+        echo '<!doctype html><html><head><meta charset="utf-8"><title>Transport Report</title></head><body>';
+        echo '<h1>Transport ' . htmlspecialchars(ucfirst($reportType)) . ' Report</h1><table border="1" cellspacing="0" cellpadding="6">';
+    } else {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . ($format === 'excel' ? '.xls' : '.csv') . '"');
+    }
+
+    if (empty($rows)) {
+        echo $format === 'pdf' ? '<tr><td>No data</td></tr></table></body></html>' : "No data\n";
+        exit;
+    }
+
+    $headers = array_keys($rows[0]);
+    if ($format === 'pdf') {
+        echo '<tr>';
+        foreach ($headers as $header) {
+            echo '<th>' . htmlspecialchars($header) . '</th>';
+        }
+        echo '</tr>';
+        foreach ($rows as $row) {
+            echo '<tr>';
+            foreach ($headers as $header) {
+                echo '<td>' . htmlspecialchars((string)($row[$header] ?? '')) . '</td>';
+            }
+            echo '</tr>';
+        }
+        echo '</table></body></html>';
+        exit;
+    }
+
+    $out = fopen('php://output', 'w');
+    fputcsv($out, $headers);
+    foreach ($rows as $row) {
+        fputcsv($out, array_map(static fn($header) => $row[$header] ?? '', $headers));
+    }
+    fclose($out);
+    exit;
+}
+
+if (isset($_GET['export'])) {
+    $format = in_array($_GET['export'], ['csv', 'excel', 'pdf'], true) ? $_GET['export'] : 'csv';
+    outputTransportReportExport(buildTransportReportRows($connection2, $reportType, $dateFrom, $dateTo, $routeID), $format, $reportType);
+}
+
 // Report type selector
 echo '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;margin:20px 0;">
         <h2>📊 ' . __('Transport Reports') . '</h2>
         <div style="display:flex;gap:10px;">
-            <a href="?type=summary" style="padding:10px 20px;background:' . ($reportType === 'summary' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'summary' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Summary') . '</a>
-            <a href="?type=attendance" style="padding:10px 20px;background:' . ($reportType === 'attendance' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'attendance' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Attendance') . '</a>
-            <a href="?type=safety" style="padding:10px 20px;background:' . ($reportType === 'safety' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'safety' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Safety') . '</a>
-            <a href="?type=utilization" style="padding:10px 20px;background:' . ($reportType === 'utilization' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'utilization' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Utilization') . '</a>
+            <a href="?q=/modules/Transport/reports_routes.php&type=summary" style="padding:10px 20px;background:' . ($reportType === 'summary' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'summary' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Summary') . '</a>
+            <a href="?q=/modules/Transport/reports_routes.php&type=attendance" style="padding:10px 20px;background:' . ($reportType === 'attendance' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'attendance' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Attendance') . '</a>
+            <a href="?q=/modules/Transport/reports_routes.php&type=safety" style="padding:10px 20px;background:' . ($reportType === 'safety' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'safety' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Safety') . '</a>
+            <a href="?q=/modules/Transport/reports_routes.php&type=utilization" style="padding:10px 20px;background:' . ($reportType === 'utilization' ? '#2196F3' : '#f5f5f5') . ';color:' . ($reportType === 'utilization' ? 'white' : '#333') . ';text-decoration:none;border-radius:6px;font-weight:bold;">' . __('Utilization') . '</a>
         </div>
       </div>';
 
 // Date filter form
 echo '<div style="background:#f9f9f9;padding:20px;border-radius:12px;margin-bottom:30px;">
         <form method="GET" style="display:flex;flex-wrap:wrap;gap:15px;align-items:end;">
+            <input type="hidden" name="q" value="/modules/Transport/reports_routes.php">
             <input type="hidden" name="type" value="' . $reportType . '">
             <div>
                 <label style="display:block;font-weight:bold;margin-bottom:5px;">' . __('From Date') . '</label>
@@ -362,7 +452,6 @@ function exportReport(format) {
     params.set('export', format);
     const url = window.location.pathname + '?' + params.toString();
     
-    // In production, this would trigger actual export
-    alert('<?= __('Export functionality would generate a ') ?>' + format.toUpperCase() + ' <?= __('file with the current report data') ?>');
+    window.location.href = url;
 }
 </script>

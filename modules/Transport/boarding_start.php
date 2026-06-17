@@ -9,6 +9,9 @@ $page->title = __('Boarding Registration');
 $page->breadcrumbs->add(__('Transport'), 'index.php');
 $page->breadcrumbs->add(__('Boarding Registration'));
 
+require_once __DIR__ . '/lib/TransportSchema.php';
+transportEnsureCompatibilitySchema($connection2);
+
 if (!isActionAccessible($guid, $connection2, '/modules/Transport/boarding_start.php')) {
     $page->addError(__('Access denied'));
     return;

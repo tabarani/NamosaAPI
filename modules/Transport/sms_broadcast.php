@@ -272,11 +272,11 @@ function previewRecipients() {
 }
 
 function sendQuickAlert(type) {
-    const templates = {
-        'delay': '<?= __('The school bus is running late today. We will update you with the expected arrival time shortly. Thank you for your patience.') ?>',
-        'emergency': '<?= __('URGENT: Please contact the school transport office immediately. This is regarding your child\\'s safety.') ?>',
-        'arrival': '<?= __('Your child has safely arrived at school. Have a great day!') ?>'
-    };
+    const templates = <?= json_encode([
+        'delay' => __('The school bus is running late today. We will update you with the expected arrival time shortly. Thank you for your patience.'),
+        'emergency' => __('URGENT: Please contact the school transport office immediately. This is regarding your child\'s safety.'),
+        'arrival' => __('Your child has safely arrived at school. Have a great day!')
+    ]) ?>;
     document.getElementById('message').value = templates[type] || '';
     updateCharCount();
     document.getElementById('message').focus();

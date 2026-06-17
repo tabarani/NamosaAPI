@@ -7,6 +7,9 @@ $page->title = __('Manage Stops');
 $page->breadcrumbs->add(__('Transport'), 'index.php');
 $page->breadcrumbs->add(__('Manage Stops'));
 
+require_once __DIR__ . '/lib/TransportSchema.php';
+transportEnsureCompatibilitySchema($connection2);
+
 if (!isActionAccessible($guid, $connection2, '/modules/Transport/stops_manage.php')) {
     $page->addError(__('Access denied'));
     return;

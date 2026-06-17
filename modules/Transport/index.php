@@ -9,6 +9,9 @@ Gibbon™, Gibbon Education Ltd. (Hong Kong)
 $page->title = __('Transport Dashboard');
 $page->breadcrumbs->add(__('Transport Dashboard'));
 
+require_once __DIR__ . '/lib/TransportSchema.php';
+transportEnsureCompatibilitySchema($connection2);
+
 if (!isActionAccessible($guid, $connection2, '/modules/Transport/index.php')) {
     $page->addError(__('Access denied'));
     return;
@@ -65,6 +68,28 @@ foreach ($links as $link) {
     echo '</a>';
 }
 
+echo '</div>';
+
+
+// Feature launch panel
+$featureCards = [
+    ['🧭', __('Parent Status API'), __('GET /transport-status/child/{id}'), '#1976D2'],
+    ['✅', __('Boarding API'), __('GET /boarding/route/{routeID} + POST /boarding/events'), '#388E3C'],
+    ['📍', __('Vehicle Tracking API'), __('POST /tracking/locations'), '#7B1FA2'],
+    ['🚨', __('Emergency API'), __('POST /emergency'), '#C62828'],
+    ['🧾', __('Billing API'), __('GET|POST /billing'), '#EF6C00'],
+    ['📘', __('Scenario Catalogue'), __('GET /scenarios'), '#455A64']
+];
+
+echo '<h2 style="margin-top:40px;">' . __('New Transport Features') . '</h2>';
+echo '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px;margin:20px 0 35px 0;">';
+foreach ($featureCards as $card) {
+    echo '<div style="background:white;border-left:4px solid ' . $card[3] . ';padding:18px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">';
+    echo '<div style="font-size:30px;margin-bottom:8px;">' . $card[0] . '</div>';
+    echo '<strong style="display:block;color:' . $card[3] . ';margin-bottom:6px;">' . $card[1] . '</strong>';
+    echo '<code style="font-size:12px;white-space:normal;word-break:break-word;">' . htmlspecialchars($card[2]) . '</code>';
+    echo '</div>';
+}
 echo '</div>';
 
 // Recent events

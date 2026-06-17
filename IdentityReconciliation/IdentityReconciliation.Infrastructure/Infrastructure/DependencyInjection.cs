@@ -2,7 +2,6 @@ using IdentityReconciliation.Infrastructure.Clients;
 using IdentityReconciliation.Infrastructure.Data;
 using IdentityReconciliation.Infrastructure.Repositories;
 using IdentityReconciliation.Application.Interfaces;
-using IdentityReconciliation.Application.Services;
 using IdentityReconciliation.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -28,7 +27,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 client.BaseAddress = new Uri(config["Moodle:BaseUrl"]!);
             });
 
-            services.AddScoped<IReconciliationService, ReconciliationService>();
 
             return services;
         }

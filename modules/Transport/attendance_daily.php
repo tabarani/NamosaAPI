@@ -7,6 +7,9 @@ $page->title = __('Daily Attendance');
 $page->breadcrumbs->add(__('Transport'), 'index.php');
 $page->breadcrumbs->add(__('Daily Attendance'));
 
+require_once __DIR__ . '/lib/TransportSchema.php';
+transportEnsureCompatibilitySchema($connection2);
+
 if (!isActionAccessible($guid, $connection2, '/modules/Transport/attendance_daily.php')) {
     $page->addError(__('Access denied'));
     return;
@@ -18,6 +21,37 @@ if (!isActionAccessible($guid, $connection2, '/modules/Transport/attendance_dail
 $routes = $connection2->query("SELECT gibbonTransportRouteID, name FROM gibbonTransportRoute WHERE active = 1 ORDER BY name")->fetchAll();
 $routeID = $_GET['route'] ?? ($routes[0]['gibbonTransportRouteID'] ?? null);
 $date = $_GET['date'] ?? date('Y-m-d');
+
+
+if (isset($_GET['export']) && $routeID && $date) {
+    $stmt = $connection2->prepare("SELECT p.gibbonPersonID, p.firstName, p.surname, p.studentID,
+                                          COALESCE(s.name, '') AS stopName,
+                                          COALESCE(e.status, 'Pending') AS attendanceStatus,
+                                          e.type, e.timestamp, e.comments
+                                   FROM gibbonTransportStudent ts
+                                   INNER JOIN gibbonPerson p ON ts.gibbonPersonID = p.gibbonPersonID
+                                   LEFT JOIN gibbonTransportStop s ON ts.gibbonTransportStopID = s.gibbonTransportStopID
+                                   LEFT JOIN gibbonTransportEvent e ON e.gibbonPersonID = ts.gibbonPersonID
+                                      AND e.gibbonTransportRouteID = ts.gibbonTransportRouteID
+                                      AND DATE(e.timestamp) = :date
+                                   WHERE ts.gibbonTransportRouteID = :routeID AND ts.status = 'Active'
+                                   ORDER BY s.sequenceNumber ASC, p.surname, p.firstName");
+    $stmt->execute(['routeID' => $routeID, 'date' => $date]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $format = in_array($_GET['export'], ['csv', 'excel'], true) ? $_GET['export'] : 'csv';
+    $filename = 'transport-attendance-' . preg_replace('/[^0-9-]/', '', $date) . ($format === 'excel' ? '.xls' : '.csv');
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    $out = fopen('php://output', 'w');
+    $headers = ['gibbonPersonID', 'firstName', 'surname', 'studentID', 'stopName', 'attendanceStatus', 'type', 'timestamp', 'comments'];
+    fputcsv($out, $headers);
+    foreach ($rows as $row) {
+        fputcsv($out, array_map(static fn($header) => $row[$header] ?? '', $headers));
+    }
+    fclose($out);
+    exit;
+}
 
 echo '<h2>📅 ' . __('Daily Transport Attendance') . '</h2>';
 
@@ -362,6 +396,8 @@ function clearAll() {
 }
 
 function exportAttendance() {
-    alert('<?= __('Export functionality would generate a CSV/PDF report') ?>');
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.location.href = window.location.pathname + '?' + params.toString();
 }
 </script>

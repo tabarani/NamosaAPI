@@ -1,33 +1,31 @@
-name: Control Center CI
+name: Namosa Module CI
 
 on:
   pull_request:
     paths:
-      - 'IdentityReconciliation/**'
       - 'modules/**'
+      - 'api/**'
+      - 'lib/**'
+      - 'database/**'
+      - 'tests/**'
+      - 'module.php'
+      - 'composer.json'
       - '.github/workflows/control-center-ci.yml'
   push:
     branches: [main]
     paths:
-      - 'IdentityReconciliation/**'
       - 'modules/**'
+      - 'api/**'
+      - 'lib/**'
+      - 'database/**'
+      - 'tests/**'
+      - 'module.php'
+      - 'composer.json'
 
 permissions:
   contents: read
 
 jobs:
-  dotnet:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore
-        run: dotnet restore IdentityReconciliation/IdentityReconciliation.sln
-      - name: Build
-        run: dotnet build IdentityReconciliation/IdentityReconciliation.sln --configuration Release --no-restore --warnaserror
-
   php:
     runs-on: ubuntu-latest
     steps:
@@ -36,4 +34,4 @@ jobs:
         with:
           php-version: '8.3'
       - name: PHP syntax check
-        run: find modules api -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find modules api lib tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l

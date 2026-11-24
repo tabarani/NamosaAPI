@@ -61,7 +61,7 @@ public sealed class GradeTransferModel : PageModel
             Message = $"Grade transfer job {result.JobId} finished. Review the per-course status and operation log.";
         }
         catch (Exception ex) { Error = ex.Message; }
-        return RedirectToPage("./Jobs");
+        return RedirectToPage(new { courseId });
     }
 
     public sealed class PolicyInput

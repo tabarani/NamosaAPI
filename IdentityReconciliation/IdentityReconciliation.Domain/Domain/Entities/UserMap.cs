@@ -34,5 +34,11 @@ namespace IdentityReconciliation.Domain.Entities
             Status = Domain.Enums.MatchStatus.Conflict;
             UpdatedAt = DateTime.UtcNow;
         }
+
+        public void MarkAsIgnored()
+        {
+            Status = Domain.Enums.MatchStatus.Ignored;
+            UpdatedAt = DateTime.UtcNow;
+        }
     }
 }

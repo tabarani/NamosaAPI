@@ -17,8 +17,8 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
         IRequestHandler<GetConflictsQuery, List<ConflictDto>>,
         IRequestHandler<GetSyncLogsQuery, List<SyncLogDto>>,
         IRequestHandler<AutoMatchCommand, AutoMatchResult>,
-        IRequestHandler<ResolveConflictCommand>,
-        IRequestHandler<LinkUsersCommand>,
+        IRequestHandler<ResolveConflictCommand, bool>,
+        IRequestHandler<LinkUsersCommand, bool>,
         IRequestHandler<IgnoreMatchCommand>
     {
         private readonly IUserMapRepository _userMapRepository;
@@ -77,35 +77,24 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
                     var matchedGibbon = emailMatches[0];
                     processedGibbonIds.Add(matchedGibbon.GibbonPersonId);
 
-                    var userMap = new UserMap
-                    {
-                        MoodleId = moodleUser.Id,
-                        GibbonId = matchedGibbon.GibbonPersonId,
-                        Email = moodleUser.Email,
-                        Username = moodleUser.Username
-                    };
-
+                    var userMap = await GetOrCreateMapAsync(moodleUser.Id);
+                    userMap.GibbonId = matchedGibbon.GibbonPersonId;
+                    userMap.Email = moodleUser.Email;
+                    userMap.Username = moodleUser.Username;
                     userMap.MarkAsLinked(100);
-                    await _userMapRepository.AddAsync(userMap);
+                    await _userMapRepository.UpdateAsync(userMap);
 
                     _logger.LogInformation("Linked Moodle user {MoodleId} to Gibbon person {GibbonId} with 100% confidence",
                         moodleUser.Id, matchedGibbon.GibbonPersonId);
                 }
                 else if (emailMatches.Count > 1)
                 {
-                    foreach (var matchedGibbon in emailMatches)
-                    {
-                        var userMap = new UserMap
-                        {
-                            MoodleId = moodleUser.Id,
-                            GibbonId = matchedGibbon.GibbonPersonId,
-                            Email = moodleUser.Email,
-                            Username = moodleUser.Username
-                        };
-
-                        userMap.MarkAsConflict();
-                        await _userMapRepository.AddAsync(userMap);
-                    }
+                    var userMap = await GetOrCreateMapAsync(moodleUser.Id);
+                    userMap.GibbonId = null;
+                    userMap.Email = moodleUser.Email;
+                    userMap.Username = moodleUser.Username;
+                    userMap.MarkAsConflict();
+                    await _userMapRepository.UpdateAsync(userMap);
 
                     conflicts.Add(new ConflictDetail(
                         moodleUser.Email,
@@ -120,35 +109,24 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
                     var matchedGibbon = usernameMatches[0];
                     processedGibbonIds.Add(matchedGibbon.GibbonPersonId);
 
-                    var userMap = new UserMap
-                    {
-                        MoodleId = moodleUser.Id,
-                        GibbonId = matchedGibbon.GibbonPersonId,
-                        Email = moodleUser.Email,
-                        Username = moodleUser.Username
-                    };
-
+                    var userMap = await GetOrCreateMapAsync(moodleUser.Id);
+                    userMap.GibbonId = matchedGibbon.GibbonPersonId;
+                    userMap.Email = moodleUser.Email;
+                    userMap.Username = moodleUser.Username;
                     userMap.MarkAsLinked(90);
-                    await _userMapRepository.AddAsync(userMap);
+                    await _userMapRepository.UpdateAsync(userMap);
 
                     _logger.LogInformation("Linked Moodle user {MoodleId} to Gibbon person {GibbonId} via username with 90% confidence",
                         moodleUser.Id, matchedGibbon.GibbonPersonId);
                 }
                 else if (usernameMatches.Count > 1 && string.IsNullOrWhiteSpace(moodleUser.Email))
                 {
-                    foreach (var matchedGibbon in usernameMatches)
-                    {
-                        var userMap = new UserMap
-                        {
-                            MoodleId = moodleUser.Id,
-                            GibbonId = matchedGibbon.GibbonPersonId,
-                            Email = moodleUser.Email,
-                            Username = moodleUser.Username
-                        };
-
-                        userMap.MarkAsConflict();
-                        await _userMapRepository.AddAsync(userMap);
-                    }
+                    var userMap = await GetOrCreateMapAsync(moodleUser.Id);
+                    userMap.GibbonId = null;
+                    userMap.Email = moodleUser.Email;
+                    userMap.Username = moodleUser.Username;
+                    userMap.MarkAsConflict();
+                    await _userMapRepository.UpdateAsync(userMap);
 
                     conflicts.Add(new ConflictDetail(
                         moodleUser.Email,
@@ -160,14 +138,11 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
                 }
                 else
                 {
-                    var userMap = new UserMap
-                    {
-                        MoodleId = moodleUser.Id,
-                        Email = moodleUser.Email,
-                        Username = moodleUser.Username
-                    };
-
-                    await _userMapRepository.AddAsync(userMap);
+                    var userMap = await GetOrCreateMapAsync(moodleUser.Id);
+                    userMap.GibbonId = null;
+                    userMap.Email = moodleUser.Email;
+                    userMap.Username = moodleUser.Username;
+                    await _userMapRepository.UpdateAsync(userMap);
                     moodleOnlyCount++;
 
                     _logger.LogDebug("No match found for Moodle user {MoodleId}", moodleUser.Id);
@@ -329,30 +304,47 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
             return new AutoMatchResult(linkedCount, ignoredCount);
         }
 
-        public async Task Handle(ResolveConflictCommand request, CancellationToken cancellationToken)
+        public async Task<bool> Handle(ResolveConflictCommand request, CancellationToken cancellationToken)
         {
-            _logger.LogWarning("ResolveConflictAsync called with mappingId {MappingId}, link={Link}", request.MappingId, request.Link);
-            await Task.CompletedTask;
+            var map = await _userMapRepository.GetByIdAsync(request.MappingId);
+            if (map is null)
+                return false;
+
+            if (request.Link && map.MoodleId.HasValue && map.GibbonId.HasValue)
+                map.MarkAsLinked(100);
+            else if (!request.Link)
+                map.MarkAsIgnored();
+            else
+                return false;
+
+            await _userMapRepository.UpdateAsync(map);
+            await _userMapRepository.SaveChangesAsync();
+            return true;
         }
 
-        public async Task Handle(LinkUsersCommand request, CancellationToken cancellationToken)
+        public async Task<bool> Handle(LinkUsersCommand request, CancellationToken cancellationToken)
         {
-            var userMap = await _userMapRepository.GetByGibbonIdAsync(request.GibbonUserId) 
-                       ?? await _userMapRepository.GetByMoodleIdAsync(request.MoodleUserId);
+            if (!request.GibbonUserId.HasValue || !request.MoodleUserId.HasValue)
+                return false;
+
+            var userMap = await _userMapRepository.GetByGibbonIdAsync(request.GibbonUserId.Value)
+                       ?? await _userMapRepository.GetByMoodleIdAsync(request.MoodleUserId.Value);
 
             if (userMap == null)
             {
                 userMap = new UserMap
                 {
-                    GibbonId = request.GibbonUserId,
-                    MoodleId = request.MoodleUserId
+                    GibbonId = request.GibbonUserId.Value,
+                    MoodleId = request.MoodleUserId.Value,
+                    Email = request.Email
                 };
                 await _userMapRepository.AddAsync(userMap);
             }
             else
             {
-                userMap.GibbonId = request.GibbonUserId;
-                userMap.MoodleId = request.MoodleUserId;
+                userMap.GibbonId = request.GibbonUserId.Value;
+                userMap.MoodleId = request.MoodleUserId.Value;
+                if (!string.IsNullOrWhiteSpace(request.Email)) userMap.Email = request.Email;
                 await _userMapRepository.UpdateAsync(userMap);
             }
 
@@ -360,18 +352,19 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
             await _userMapRepository.SaveChangesAsync();
             
             _logger.LogInformation("Manually linked GibbonUser {GibbonId} to MoodleUser {MoodleId}", request.GibbonUserId, request.MoodleUserId);
+            return true;
         }
 
         public async Task Handle(IgnoreMatchCommand request, CancellationToken cancellationToken)
         {
-            var userMap = await _userMapRepository.GetByGibbonIdAsync(request.GibbonUserId);
-            
-            if (userMap != null && userMap.MoodleId == request.MoodleUserId)
+            var userMap = await _userMapRepository.GetByIdAsync(request.MappingId);
+            if (userMap != null)
             {
-                _logger.LogInformation("Ignored match between GibbonUser {GibbonId} and MoodleUser {MoodleId}", request.GibbonUserId, request.MoodleUserId);
+                userMap.MarkAsIgnored();
+                await _userMapRepository.UpdateAsync(userMap);
+                await _userMapRepository.SaveChangesAsync();
+                _logger.LogInformation("Ignored identity match {MappingId}", request.MappingId);
             }
-            
-            await Task.CompletedTask;
         }
 
 
@@ -408,6 +401,17 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
             }
 
             return Math.Min(score, 100);
+        }
+
+        private async Task<UserMap> GetOrCreateMapAsync(int moodleId)
+        {
+            var existing = await _userMapRepository.GetByMoodleIdAsync(moodleId);
+            if (existing is not null)
+                return existing;
+
+            var created = new UserMap { MoodleId = moodleId };
+            await _userMapRepository.AddAsync(created);
+            return created;
         }
     }
 }

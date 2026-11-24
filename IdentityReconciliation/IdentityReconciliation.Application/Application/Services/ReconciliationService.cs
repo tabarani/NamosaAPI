@@ -21,8 +21,8 @@ namespace IdentityReconciliation.Application.Services
         public Task<List<ConflictDto>> GetConflictsAsync() => _mediator.Send(new GetConflictsQuery());
         public Task<List<SyncLogDto>> GetSyncLogsAsync(int count = 50) => _mediator.Send(new GetSyncLogsQuery(count));
         public Task<AutoMatchResult> AutoMatchAsync() => _mediator.Send(new AutoMatchCommand());
-        public Task ResolveConflictAsync(int mappingId, bool link) => _mediator.Send(new ResolveConflictCommand(mappingId, link));
-        public Task LinkUsersAsync(int gibbonUserId, int moodleUserId, int? idpUserId = null) => _mediator.Send(new LinkUsersCommand(gibbonUserId, moodleUserId, idpUserId));
-        public Task IgnoreMatchAsync(int gibbonUserId, int moodleUserId) => _mediator.Send(new IgnoreMatchCommand(gibbonUserId, moodleUserId));
+        public Task<bool> ResolveConflictAsync(Guid mappingId, bool link) => _mediator.Send(new ResolveConflictCommand(mappingId, link));
+        public Task<bool> LinkUsersAsync(int? moodleUserId, int? gibbonUserId, string? email = null) => _mediator.Send(new LinkUsersCommand(moodleUserId, gibbonUserId, email));
+        public Task IgnoreMatchAsync(Guid mappingId) => _mediator.Send(new IgnoreMatchCommand(mappingId));
     }
 }

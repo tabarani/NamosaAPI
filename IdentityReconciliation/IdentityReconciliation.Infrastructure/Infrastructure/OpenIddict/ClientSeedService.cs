@@ -1,11 +1,13 @@
 using IdentityReconciliation.Domain.Entities;
 using IdentityReconciliation.Domain.Interfaces;
 using IdentityReconciliation.Infrastructure.Data;
+using IdentityReconciliation.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using OpenIddict.Abstractions;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -22,11 +24,13 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ClientSeedService> _logger;
+        private readonly IConfiguration _configuration;
 
-        public ClientSeedService(IServiceProvider serviceProvider, ILogger<ClientSeedService> logger)
+        public ClientSeedService(IServiceProvider serviceProvider, ILogger<ClientSeedService> logger, IConfiguration configuration)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _configuration = configuration;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -35,6 +39,8 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
 
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             await context.Database.EnsureCreatedAsync(cancellationToken);
+            var schema = scope.ServiceProvider.GetRequiredService<ControlCenterSchemaInitializer>();
+            await schema.EnsureAsync(cancellationToken);
 
             await SeedClientsAsync(scope, cancellationToken);
             await SeedAdminUserAsync(scope);
@@ -47,19 +53,28 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
         {
             var manager = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
 
+            var gibbonSecret = _configuration["Bootstrap:GibbonClientSecret"];
+            var gibbonRedirect = _configuration["Bootstrap:GibbonRedirectUri"];
+            var gibbonLogout = _configuration["Bootstrap:GibbonPostLogoutRedirectUri"];
+            var moodleSecret = _configuration["Bootstrap:MoodleClientSecret"];
+            var moodleRedirect = _configuration["Bootstrap:MoodleRedirectUri"];
+            var moodleLogout = _configuration["Bootstrap:MoodlePostLogoutRedirectUri"];
+
             // ── Gibbon Client ──
-            if (await manager.FindByClientIdAsync("gibbon-sso", ct) == null)
+            if (!string.IsNullOrWhiteSpace(gibbonSecret) &&
+                Uri.TryCreate(gibbonRedirect, UriKind.Absolute, out var gibbonRedirectUri) &&
+                Uri.TryCreate(gibbonLogout, UriKind.Absolute, out var gibbonLogoutUri) &&
+                await manager.FindByClientIdAsync("gibbon-sso", ct) == null)
             {
                 var descriptor = new OpenIddictApplicationDescriptor
                 {
                     ClientId = "gibbon-sso",
-                    ClientSecret = "gibbon-sso-secret-change-me",
+                    ClientSecret = gibbonSecret,
                     DisplayName = "Gibbon SIS",
                     ClientType = ClientTypes.Confidential,
                     ConsentType = ConsentTypes.Implicit, // Auto-approve (no consent screen)
-                    // Add your actual Gibbon URL here:
-                    RedirectUris = { new Uri("https://nbs.edu.mr/sis2/index.php?q=/modules/OIDC/callback.php") },
-                    PostLogoutRedirectUris = { new Uri("https://nbs.edu.mr/sis2/index.php") },
+                    RedirectUris = { gibbonRedirectUri },
+                    PostLogoutRedirectUris = { gibbonLogoutUri },
                     Permissions =
                     {
                         Permissions.Endpoints.Authorization,
@@ -90,18 +105,20 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
             }
 
             // ── Moodle Client ──
-            if (await manager.FindByClientIdAsync("moodle-sso", ct) == null)
+            if (!string.IsNullOrWhiteSpace(moodleSecret) &&
+                Uri.TryCreate(moodleRedirect, UriKind.Absolute, out var moodleRedirectUri) &&
+                Uri.TryCreate(moodleLogout, UriKind.Absolute, out var moodleLogoutUri) &&
+                await manager.FindByClientIdAsync("moodle-sso", ct) == null)
             {
                 var descriptor = new OpenIddictApplicationDescriptor
                 {
                     ClientId = "moodle-sso",
-                    ClientSecret = "moodle-sso-secret-change-me",
+                    ClientSecret = moodleSecret,
                     DisplayName = "Moodle LMS",
                     ClientType = ClientTypes.Confidential,
                     ConsentType = ConsentTypes.Implicit,
-                    // Add your actual Moodle URL here:
-                    RedirectUris = { new Uri("https://nbs.edu.mr/lms2/auth/oidc/") },
-                    PostLogoutRedirectUris = { new Uri("https://nbs.edu.mr/lms2/") },
+                    RedirectUris = { moodleRedirectUri },
+                    PostLogoutRedirectUris = { moodleLogoutUri },
                     Permissions =
                     {
                         Permissions.Endpoints.Authorization,
@@ -154,7 +171,7 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
         /// </summary>
         private async Task SeedAdminUserAsync(IServiceScope scope)
         {
-            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
             // Ensure Admin role exists
@@ -164,17 +181,22 @@ namespace IdentityReconciliation.Infrastructure.OpenIddict
                 _logger.LogInformation("Created 'Admin' role.");
             }
 
-            // Create default admin user
-            const string adminEmail = "admin@nbs.edu.mr";
-            const string adminPassword = "Admin@2024!"; // CHANGE THIS IN PRODUCTION
+            var adminEmail = _configuration["Bootstrap:AdminEmail"];
+            var adminPassword = _configuration["Bootstrap:AdminPassword"];
+            if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+            {
+                _logger.LogInformation("Bootstrap administrator was not configured; no administrator account was seeded.");
+                return;
+            }
 
             if (await userManager.FindByEmailAsync(adminEmail) == null)
             {
-                var admin = new IdentityUser
+                var admin = new ApplicationUser
                 {
                     UserName = adminEmail,
                     Email = adminEmail,
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    MustChangePassword = true
                 };
 
                 var result = await userManager.CreateAsync(admin, adminPassword);

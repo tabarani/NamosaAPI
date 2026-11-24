@@ -225,7 +225,7 @@
                                 <tbody>
                                     @foreach (var match in Model.PendingMatches)
                                     {
-                                        var scoreClass = match.MatchScore >= 80 ? "score-high" : (match.MatchScore >= 50 ? "score-medium" : "score-low");
+                                        var scoreClass = match.EmailScore >= 80 ? "score-high" : (match.EmailScore >= 50 ? "score-medium" : "score-low");
                                         <tr>
                                             <td>
                                                 <strong>@match.GibbonName</strong><br/>
@@ -237,12 +237,12 @@
                                             </td>
                                             <td>@match.IdPUsername</td>
                                             <td>
-                                                <span class="match-score @scoreClass">@match.MatchScore%</span>
+                                                <span class="match-score @scoreClass">@match.EmailScore%</span>
                                             </td>
                                             <td>
                                                 <form method="post" asp-page-handler="LinkUsers" class="d-inline">
-                                                    <input type="hidden" name="moodleId" value="@match.MoodleId" />
-                                                    <input type="hidden" name="gibbonId" value="@match.GibbonId" />
+                                                    <input type="hidden" name="moodleId" value="@match.MoodleUserId" />
+                                                    <input type="hidden" name="gibbonId" value="@match.GibbonUserId" />
                                                     <input type="hidden" name="email" value="@match.MoodleEmail" />
                                                     <button type="submit" class="btn btn-sm btn-success btn-action" title="Link these users">
                                                         <i class="bi bi-link-45deg"></i> Link
@@ -279,9 +279,10 @@
                             <table class="table table-hover align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Email</th>
-                                        <th>Moodle Users</th>
-                                        <th>Gibbon Candidates</th>
+                                        <th>User</th>
+                                        <th>Gibbon email</th>
+                                        <th>Moodle email</th>
+                                        <th>Issue</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -289,19 +290,10 @@
                                     @foreach (var conflict in Model.Conflicts)
                                     {
                                         <tr>
-                                            <td><strong>@conflict.Email</strong></td>
-                                            <td>
-                                                @foreach (var m in conflict.MoodleCandidates)
-                                                {
-                                                    <div>@m.Firstname @m.Lastname<br/><small class="text-muted">@m.Username</small></div>
-                                                }
-                                            </td>
-                                            <td>
-                                                @foreach (var g in conflict.GibbonCandidates)
-                                                {
-                                                    <div>@g.OfficialName<br/><small class="text-muted">ID: @g.GibbonPersonId</small></div>
-                                                }
-                                            </td>
+                                            <td><strong>@conflict.UserName</strong></td>
+                                            <td>@conflict.GibbonEmail</td>
+                                            <td>@conflict.MoodleEmail</td>
+                                            <td><strong>@conflict.IssueType</strong><br/><small class="text-muted">@conflict.Description</small></td>
                                             <td>
                                                 <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Review Required</span>
                                             </td>
@@ -353,7 +345,7 @@
                                                 }
                                             </td>
                                             <td>@log.Details</td>
-                                            <td>@log.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                            <td>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
                                         </tr>
                                     }
                                 </tbody>

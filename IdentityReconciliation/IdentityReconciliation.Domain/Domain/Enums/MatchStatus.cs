@@ -4,6 +4,7 @@ namespace IdentityReconciliation.Domain.Enums
     {
         Pending = 0,
         Linked = 1,
-        Conflict = 2
+        Conflict = 2,
+        Ignored = 3
     }
 }

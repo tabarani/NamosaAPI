@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Security.Claims;
 using IdentityReconciliation.Infrastructure.OpenIddict;
+using IdentityReconciliation.Infrastructure.Identity;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -19,14 +20,14 @@ namespace IdentityReconciliation.WebAPI.Controllers
     [ApiController]
     public class AuthorizationController : ControllerBase
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly CustomProfileService _profileService;
         private readonly ILogger<AuthorizationController> _logger;
 
         public AuthorizationController(
-            SignInManager<IdentityUser> signInManager,
-            UserManager<IdentityUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
+            UserManager<ApplicationUser> userManager,
             CustomProfileService profileService,
             ILogger<AuthorizationController> logger)
         {

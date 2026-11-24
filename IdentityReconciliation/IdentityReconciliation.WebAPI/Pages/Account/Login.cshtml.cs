@@ -3,17 +3,20 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using IdentityReconciliation.Infrastructure.Identity;
 
 namespace IdentityReconciliation.WebAPI.Pages.Account
 {
     public class LoginModel : PageModel
     {
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<LoginModel> _logger;
 
-        public LoginModel(SignInManager<IdentityUser> signInManager, ILogger<LoginModel> logger)
+        public LoginModel(SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, ILogger<LoginModel> logger)
         {
             _signInManager = signInManager;
+            _userManager = userManager;
             _logger = logger;
         }
 
@@ -63,12 +66,27 @@ namespace IdentityReconciliation.WebAPI.Pages.Account
                 return Page();
             }
 
-            var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+            var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
 
             if (result.Succeeded)
             {
+                var user = await _userManager.FindByEmailAsync(Input.Email);
+                if (user is not null)
+                {
+                    user.LastSuccessfulLoginAt = DateTime.UtcNow;
+                    await _userManager.UpdateAsync(user);
+                    if (user.MustChangePassword)
+                        return RedirectToPage("./ChangePassword", new { ReturnUrl = returnUrl });
+                }
                 _logger.LogInformation("User logged in successfully.");
                 return LocalRedirect(returnUrl);
+            }
+
+            var failedUser = await _userManager.FindByEmailAsync(Input.Email);
+            if (failedUser is not null)
+            {
+                failedUser.LastFailedLoginAt = DateTime.UtcNow;
+                await _userManager.UpdateAsync(failedUser);
             }
 
             if (result.RequiresTwoFactor)

@@ -102,55 +102,6 @@ namespace IdentityReconciliation.Infrastructure.Clients
             return new MoodleCourseGradeDto(raw, min, max, percentage, ReadBool(item, "hidden"), ReadBool(item, "overridden"), ReadNullableString(item, "feedback"));
         }
 
-        public async Task<int?> FindUserByIdNumberAsync(string idNumber, CancellationToken cancellationToken = default)
-        {
-            using var document = await CallAsync("core_user_get_users_by_field", new()
-            {
-                ["field"] = "idnumber", ["values[0]"] = idNumber
-            }, cancellationToken);
-            if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() != 1)
-                return null;
-            return ReadInt(document.RootElement[0], "id");
-        }
-
-        public async Task UpdateSisGradeItemAsync(int courseId, string externalClassId, string itemName, decimal maximumValue,
-            IReadOnlyList<MoodleGradeWriteDto> grades, CancellationToken cancellationToken = default)
-        {
-            var arguments = new Dictionary<string, string>
-            {
-                ["source"] = "Yulpana Gibbon SIS",
-                ["courseid"] = courseId.ToString(CultureInfo.InvariantCulture),
-                ["component"] = "local_namosa",
-                ["activityid"] = StableActivityId(externalClassId).ToString(CultureInfo.InvariantCulture),
-                ["itemnumber"] = "0",
-                ["itemdetails[itemname]"] = itemName,
-                ["itemdetails[idnumber]"] = $"namosa-{externalClassId}",
-                ["itemdetails[gradetype]"] = "1",
-                ["itemdetails[grademin]"] = "0",
-                ["itemdetails[grademax]"] = maximumValue.ToString(CultureInfo.InvariantCulture)
-            };
-            for (var index = 0; index < grades.Count; index++)
-            {
-                arguments[$"grades[{index}][studentid]"] = grades[index].MoodleUserId.ToString(CultureInfo.InvariantCulture);
-                arguments[$"grades[{index}][grade]"] = grades[index].Grade.ToString(CultureInfo.InvariantCulture);
-                if (!string.IsNullOrWhiteSpace(grades[index].Feedback))
-                    arguments[$"grades[{index}][str_feedback]"] = grades[index].Feedback!;
-            }
-            using var result = await CallAsync("core_grades_update_grades", arguments, cancellationToken);
-            if (result.RootElement.ValueKind == JsonValueKind.Number && result.RootElement.GetInt32() != 0)
-                throw new InvalidOperationException($"Moodle rejected the grade update with status {result.RootElement.GetInt32()}.");
-        }
-
-        private static int StableActivityId(string value)
-        {
-            unchecked
-            {
-                var hash = 17;
-                foreach (var character in value) hash = hash * 31 + character;
-                return Math.Abs(hash == int.MinValue ? int.MaxValue : hash);
-            }
-        }
-
         private async Task<JsonDocument> CallAsync(string function, Dictionary<string, string> arguments, CancellationToken cancellationToken)
         {
             var connection = await ResolveConnectionAsync();

@@ -57,10 +57,3 @@ public sealed record GradeTransferPreviewItem(
     string? Message);
 
 public sealed record GradeTransferRunResult(Guid JobId, IReadOnlyList<GradeTransferPreviewItem> Courses);
-
-public sealed record GibbonGradeCourseDto(string GibbonCourseClassId, string CourseName, string ClassName, int GradedStudents, decimal MaximumValue);
-public sealed record GibbonStudentGradeDto(string GibbonPersonId, decimal Grade, string? Comment);
-public sealed record MoodleGradeWriteDto(int MoodleUserId, decimal Grade, string? Feedback);
-public sealed record GibbonToMoodleCourseStatus(string GibbonCourseClassId, string CourseName, int? MoodleCourseId, string? MoodleCourseName,
-    int AvailableGrades, int MappedStudents, int UnmappedStudents, string Status, string? Message);
-public sealed record GibbonToMoodleRunResult(Guid JobId, IReadOnlyList<GibbonToMoodleCourseStatus> Courses);

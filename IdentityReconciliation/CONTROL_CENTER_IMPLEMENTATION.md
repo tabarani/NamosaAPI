@@ -56,9 +56,3 @@ The Control Center owns the end-of-semester grade-transfer workflow:
 - Scheduled global transfer runs once per semester key. Preview is read-only, and validation failures are recorded in the job log.
 
 Required Moodle functions: `core_course_get_courses`, `core_enrol_get_enrolled_users`, and `gradereport_user_get_grade_items`.
-
-The reverse Gibbon-to-Moodle workflow is available at `/Admin/GibbonToMoodle`. It lists completed Gibbon semester-total
-Markbook columns, resolves Moodle courses by `course.idnumber`, validates every student through `user.idnumber`, and lets
-an administrator select individual courses. A selected course is written as an idempotent Moodle grade item only when all
-student mappings are complete. This direction additionally requires `core_user_get_users_by_field` and
-`core_grades_update_grades` in the Moodle service token.

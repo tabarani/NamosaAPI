@@ -52,9 +52,3 @@ public interface IGradeTransferService
     Task<IReadOnlyList<GradeTransferPreviewItem>> PreviewAsync(int? moodleCourseId = null, CancellationToken cancellationToken = default);
     Task<GradeTransferRunResult> RunAsync(int? moodleCourseId, bool manual, string? requestedBy, CancellationToken cancellationToken = default);
 }
-
-public interface IGibbonToMoodleGradeService
-{
-    Task<IReadOnlyList<GibbonToMoodleCourseStatus>> PreviewAsync(IReadOnlyCollection<string>? selectedClassIds = null, CancellationToken cancellationToken = default);
-    Task<GibbonToMoodleRunResult> RunAsync(IReadOnlyCollection<string> selectedClassIds, string? requestedBy, CancellationToken cancellationToken = default);
-}

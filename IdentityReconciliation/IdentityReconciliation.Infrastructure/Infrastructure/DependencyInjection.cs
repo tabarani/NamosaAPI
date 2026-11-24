@@ -31,7 +31,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<ISyncJobService, SyncJobService>();
             services.AddScoped<IGibbonGradeRepository, GibbonGradeRepository>();
             services.AddScoped<IGradeTransferService, GradeTransferService>();
-            services.AddScoped<IGibbonToMoodleGradeService, GibbonToMoodleGradeService>();
             services.AddHostedService<GradeTransferScheduler>();
             services.AddDataProtection();
             services.AddHttpClient("IntegrationHealth", client => client.Timeout = TimeSpan.FromSeconds(10));

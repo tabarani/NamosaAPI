@@ -129,51 +129,6 @@ public sealed class GibbonGradeRepository : IGibbonGradeRepository
         return new(columnId, entryId!, columnCreated, entryCreated, request.Value);
     }
 
-    public async Task<IReadOnlyList<GibbonGradeCourseDto>> GetGradeCoursesAsync(string semesterKey, CancellationToken cancellationToken = default)
-    {
-        await using var connection = await OpenAsync(cancellationToken);
-        const string sql = """
-            SELECT cc.gibbonCourseClassID AS GibbonCourseClassId, c.name AS CourseName, cc.name AS ClassName,
-                   COUNT(e.gibbonMarkbookEntryID) AS GradedStudents,
-                   COALESCE(col.attainmentRawMax, 100) AS MaximumValue
-            FROM gibbonMarkbookColumn col
-            INNER JOIN gibbonCourseClass cc ON cc.gibbonCourseClassID = col.gibbonCourseClassID
-            INNER JOIN gibbonCourse c ON c.gibbonCourseID = cc.gibbonCourseID
-            LEFT JOIN gibbonMarkbookEntry e ON e.gibbonMarkbookColumnID = col.gibbonMarkbookColumnID
-                AND e.attainmentValueRaw IS NOT NULL AND e.attainmentValueRaw <> ''
-            WHERE col.complete = 'Y'
-              AND (col.type = 'Semester Total' OR col.description LIKE @Marker)
-              AND col.gibbonMarkbookColumnID = (
-                  SELECT MAX(c2.gibbonMarkbookColumnID) FROM gibbonMarkbookColumn c2
-                  WHERE c2.gibbonCourseClassID = col.gibbonCourseClassID AND c2.complete = 'Y'
-                    AND (c2.type = 'Semester Total' OR c2.description LIKE @Marker))
-            GROUP BY cc.gibbonCourseClassID, c.name, cc.name, col.attainmentRawMax
-            ORDER BY c.name, cc.name
-            """;
-        var marker = $"[Yulpana:MoodleCourseTotal:{semesterKey}:%";
-        var rows = await connection.QueryAsync<GibbonGradeCourseDto>(new CommandDefinition(sql, new { Marker = marker }, cancellationToken: cancellationToken));
-        return rows.ToList();
-    }
-
-    public async Task<IReadOnlyList<GibbonStudentGradeDto>> GetCourseGradesAsync(string gibbonCourseClassId, string semesterKey, CancellationToken cancellationToken = default)
-    {
-        await using var connection = await OpenAsync(cancellationToken);
-        const string sql = """
-            SELECT e.gibbonPersonIDStudent AS GibbonPersonId,
-                   CAST(e.attainmentValueRaw AS DECIMAL(10,2)) AS Grade, e.comment AS Comment
-            FROM gibbonMarkbookEntry e
-            INNER JOIN gibbonMarkbookColumn col ON col.gibbonMarkbookColumnID = e.gibbonMarkbookColumnID
-            WHERE col.gibbonCourseClassID = @GibbonCourseClassId AND col.complete = 'Y'
-              AND e.attainmentValueRaw IS NOT NULL AND e.attainmentValueRaw <> ''
-              AND (col.type = 'Semester Total' OR col.description LIKE @Marker)
-            ORDER BY col.gibbonMarkbookColumnID DESC
-            """;
-        var marker = $"[Yulpana:MoodleCourseTotal:{semesterKey}:%";
-        var rows = (await connection.QueryAsync<GibbonStudentGradeDto>(new CommandDefinition(sql,
-            new { GibbonCourseClassId = gibbonCourseClassId, Marker = marker }, cancellationToken: cancellationToken))).ToList();
-        return rows.GroupBy(x => x.GibbonPersonId).Select(x => x.First()).ToList();
-    }
-
     private async Task<MySqlConnection> OpenAsync(CancellationToken cancellationToken)
     {
         var configured = await _connections.ResolveAsync(IntegrationSystemType.Gibbon, cancellationToken);

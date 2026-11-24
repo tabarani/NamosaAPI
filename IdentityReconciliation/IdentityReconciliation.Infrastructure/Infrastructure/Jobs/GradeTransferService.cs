@@ -164,7 +164,7 @@ public sealed class GradeTransferService : IGradeTransferService
             }
         }
 
-        var status = blocked ? "BlockedIncomplete" : write ? "Transferred" : "Ready";
+        var status = blocked ? "BlockedIncomplete" : write && written < transferable ? "TransferFailed" : write ? "Transferred" : "Ready";
         var message = blocked
             ? "No grades were written: the course has no transferable student totals, or some totals/identity mappings are incomplete."
             : write ? $"Transferred {written} of {transferable} available grades." : null;

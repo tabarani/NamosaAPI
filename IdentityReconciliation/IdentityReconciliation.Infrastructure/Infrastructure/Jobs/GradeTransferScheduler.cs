@@ -35,7 +35,7 @@ public sealed class GradeTransferScheduler : BackgroundService
             var lastKey = await settings.GetAsync("GradeTransfer", "LastScheduledSemesterKey", cancellationToken);
             if (string.Equals(lastKey, policy.SemesterKey, StringComparison.OrdinalIgnoreCase)) return;
             var result = await transfer.RunAsync(null, false, "Yulpana scheduler", cancellationToken);
-            var hasBlockingStatus = result.Courses.Any(x => x.Status is "BlockedIncomplete" or "MappingRequired");
+            var hasBlockingStatus = result.Courses.Any(x => x.Status is "BlockedIncomplete" or "MappingRequired" or "TransferFailed");
             if (!hasBlockingStatus)
                 await settings.SetAsync("GradeTransfer", "LastScheduledSemesterKey", policy.SemesterKey, false, "Yulpana scheduler", cancellationToken);
         }

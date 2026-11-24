@@ -1,5 +1,6 @@
 using IdentityReconciliation.Domain.Entities;
 using IdentityReconciliation.Domain.Enums;
+using IdentityReconciliation.Application.DTOs;
 
 namespace IdentityReconciliation.Application.Interfaces;
 
@@ -42,4 +43,18 @@ public interface ISyncJobService
     Task RecordAttemptAsync(Guid operationId, bool succeeded, int? responseStatusCode, long durationMilliseconds, string? errorCategory, string? sanitizedMessage, DateTime? nextRetryAt, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SyncJob>> GetRecentAsync(int count = 50, CancellationToken cancellationToken = default);
     Task<SyncJob?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public interface IGradeTransferService
+{
+    Task<GradeTransferPolicy> GetPolicyAsync(CancellationToken cancellationToken = default);
+    Task SavePolicyAsync(GradeTransferPolicy policy, string? actor, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<GradeTransferPreviewItem>> PreviewAsync(int? moodleCourseId = null, CancellationToken cancellationToken = default);
+    Task<GradeTransferRunResult> RunAsync(int? moodleCourseId, bool manual, string? requestedBy, CancellationToken cancellationToken = default);
+}
+
+public interface IGibbonToMoodleGradeService
+{
+    Task<IReadOnlyList<GibbonToMoodleCourseStatus>> PreviewAsync(IReadOnlyCollection<string>? selectedClassIds = null, CancellationToken cancellationToken = default);
+    Task<GibbonToMoodleRunResult> RunAsync(IReadOnlyCollection<string> selectedClassIds, string? requestedBy, CancellationToken cancellationToken = default);
 }

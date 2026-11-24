@@ -1,0 +1,28 @@
+@page
+@model IdentityReconciliation.WebAPI.Pages.Admin.JobsModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    ViewData["Title"] = "Synchronization Jobs";
+}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h1 class="h3 mb-1">Synchronization jobs</h1><p class="text-muted mb-0">Durable status, retry and audit history for every integration run.</p></div>
+        <div class="d-flex gap-2"><a class="btn btn-outline-primary" asp-page="./Systems">Connected systems</a><a class="btn btn-outline-secondary" asp-page="./Dashboard">Reconciliation</a></div>
+    </div>
+    <div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead class="table-light"><tr><th>Created</th><th>Job</th><th>Direction</th><th>Trigger</th><th>Status</th><th>Progress</th><th>Correlation</th></tr></thead>
+        <tbody>
+        @if (Model.Items.Count == 0) { <tr><td colspan="7" class="text-center text-muted py-5">No synchronization jobs recorded yet.</td></tr> }
+        @foreach (var job in Model.Items)
+        {
+            <tr>
+                <td>@job.CreatedAt.ToString("u")</td><td><strong>@job.JobType</strong></td><td>@job.Direction</td><td>@job.Trigger</td>
+                <td><span class="badge bg-secondary">@job.Status</span></td>
+                <td>@job.SucceededOperations succeeded / @job.FailedOperations failed / @job.TotalOperations total</td>
+                <td><code>@job.CorrelationId</code></td>
+            </tr>
+        }
+        </tbody>
+    </table></div></div>
+</div>

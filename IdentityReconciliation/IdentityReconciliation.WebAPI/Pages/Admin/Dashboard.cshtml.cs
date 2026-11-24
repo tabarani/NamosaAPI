@@ -30,7 +30,7 @@ namespace IdentityReconciliation.WebAPI.Pages.Admin
         public List<PendingMatchDto> PendingMatches { get; set; } = new();
 
         [BindProperty]
-        public List<ConflictDetail> Conflicts { get; set; } = new();
+        public List<ConflictDto> Conflicts { get; set; } = new();
 
         [BindProperty]
         public List<SyncLogDto> SyncLogs { get; set; } = new();
@@ -58,9 +58,9 @@ namespace IdentityReconciliation.WebAPI.Pages.Admin
         {
             try
             {
-                var matchedCount = await _reconciliationService.AutoMatchAsync();
-                SuccessMessage = $"Auto-match completed successfully. {matchedCount} records were automatically linked.";
-                _logger.LogInformation("Auto-match executed by admin. Matched: {Count}", matchedCount);
+                var result = await _reconciliationService.AutoMatchAsync();
+                SuccessMessage = $"Auto-match completed. {result.LinkedCount} linked; {result.IgnoredCount} require review.";
+                _logger.LogInformation("Auto-match executed by admin. Linked: {Linked}; review: {Review}", result.LinkedCount, result.IgnoredCount);
             }
             catch (Exception ex)
             {

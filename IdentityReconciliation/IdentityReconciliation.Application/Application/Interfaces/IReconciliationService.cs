@@ -11,9 +11,9 @@ namespace IdentityReconciliation.Application.Interfaces
         Task<List<ConflictDto>> GetConflictsAsync();
         Task<List<SyncLogDto>> GetSyncLogsAsync(int count = 50);
         Task<AutoMatchResult> AutoMatchAsync();
-        Task ResolveConflictAsync(int mappingId, bool link);
-        Task LinkUsersAsync(int gibbonUserId, int moodleUserId, int? idpUserId = null);
-        Task IgnoreMatchAsync(int gibbonUserId, int moodleUserId);
+        Task<bool> ResolveConflictAsync(Guid mappingId, bool link);
+        Task<bool> LinkUsersAsync(int? moodleUserId, int? gibbonUserId, string? email = null);
+        Task IgnoreMatchAsync(Guid mappingId);
     }
 
     public record DashboardStatsDto(

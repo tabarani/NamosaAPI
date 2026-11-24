@@ -49,7 +49,9 @@ namespace IdentityReconciliation.Infrastructure.Data
 
         public Task UpdateAsync(UserMap map)
         {
-            _context.UserMaps.Update(map);
+            var entry = _context.Entry(map);
+            if (entry.State == EntityState.Detached)
+                _context.UserMaps.Update(map);
             return Task.CompletedTask;
         }
 

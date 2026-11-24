@@ -1,0 +1,39 @@
+name: Control Center CI
+
+on:
+  pull_request:
+    paths:
+      - 'IdentityReconciliation/**'
+      - 'modules/**'
+      - '.github/workflows/control-center-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'IdentityReconciliation/**'
+      - 'modules/**'
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore
+        run: dotnet restore IdentityReconciliation/IdentityReconciliation.sln
+      - name: Build
+        run: dotnet build IdentityReconciliation/IdentityReconciliation.sln --configuration Release --no-restore --warnaserror
+
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: PHP syntax check
+        run: find modules api -type f -name '*.php' -print0 | xargs -0 -n1 php -l

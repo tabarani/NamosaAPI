@@ -19,6 +19,13 @@ node_modules/
 # Editors
 .vscode/
 .idea/
+.vs/
+**/.vs/
+**/bin/
+**/obj/
+**/publish/
+*.user
+*.suo
 
 # Database
 *.sql

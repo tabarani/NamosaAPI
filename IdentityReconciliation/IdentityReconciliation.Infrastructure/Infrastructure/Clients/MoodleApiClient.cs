@@ -3,6 +3,8 @@ using IdentityReconciliation.Application.DTOs;
 using IdentityReconciliation.Application.Interfaces;
 using Microsoft.Extensions.Configuration;
 using IdentityReconciliation.Domain.Enums;
+using System.Globalization;
+using System.Text.Json;
 
 namespace IdentityReconciliation.Infrastructure.Clients
 {
@@ -56,6 +58,76 @@ namespace IdentityReconciliation.Infrastructure.Clients
             var response = await _httpClient.PostAsync(connection.Endpoint, new FormUrlEncodedContent(parameters));
             response.EnsureSuccessStatusCode();
         }
+
+        public async Task<IReadOnlyList<MoodleCourseDto>> GetCoursesAsync(CancellationToken cancellationToken = default)
+        {
+            using var document = await CallAsync("core_course_get_courses", new(), cancellationToken);
+            return document.RootElement.EnumerateArray()
+                .Where(x => ReadInt(x, "id") > 1)
+                .Select(x => new MoodleCourseDto(ReadInt(x, "id"), ReadString(x, "fullname"), ReadString(x, "shortname"), ReadString(x, "idnumber")))
+                .ToList();
+        }
+
+        public async Task<IReadOnlyList<MoodleEnrolledUserDto>> GetEnrolledUsersAsync(int courseId, CancellationToken cancellationToken = default)
+        {
+            using var document = await CallAsync("core_enrol_get_enrolled_users", new() { ["courseid"] = courseId.ToString(CultureInfo.InvariantCulture) }, cancellationToken);
+            return document.RootElement.EnumerateArray()
+                .Select(x => new MoodleEnrolledUserDto(ReadInt(x, "id"), ReadString(x, "username"), ReadString(x, "idnumber"), ReadString(x, "fullname"), HasStudentRole(x)))
+                .Where(x => x.IsStudent)
+                .ToList();
+        }
+
+        public async Task<MoodleCourseGradeDto?> GetCourseTotalAsync(int courseId, int userId, CancellationToken cancellationToken = default)
+        {
+            using var document = await CallAsync("gradereport_user_get_grade_items", new()
+            {
+                ["courseid"] = courseId.ToString(CultureInfo.InvariantCulture),
+                ["userid"] = userId.ToString(CultureInfo.InvariantCulture)
+            }, cancellationToken);
+
+            if (!document.RootElement.TryGetProperty("usergrades", out var userGrades) || userGrades.GetArrayLength() == 0)
+                return null;
+            var items = userGrades[0].GetProperty("gradeitems");
+            JsonElement? courseTotal = items.EnumerateArray().FirstOrDefault(x =>
+                string.Equals(ReadString(x, "itemtype"), "course", StringComparison.OrdinalIgnoreCase));
+            if (!courseTotal.HasValue || courseTotal.Value.ValueKind == JsonValueKind.Undefined)
+                return null;
+            var item = courseTotal.Value;
+            var raw = ReadDecimal(item, "graderaw");
+            var min = ReadDecimal(item, "grademin");
+            var max = ReadDecimal(item, "grademax");
+            var percentage = raw.HasValue && min.HasValue && max.HasValue && max.Value > min.Value
+                ? Math.Round((raw.Value - min.Value) * 100m / (max.Value - min.Value), 2)
+                : null;
+            return new MoodleCourseGradeDto(raw, min, max, percentage, ReadBool(item, "hidden"), ReadBool(item, "overridden"), ReadNullableString(item, "feedback"));
+        }
+
+        private async Task<JsonDocument> CallAsync(string function, Dictionary<string, string> arguments, CancellationToken cancellationToken)
+        {
+            var connection = await ResolveConnectionAsync();
+            arguments["wstoken"] = connection.Token;
+            arguments["wsfunction"] = function;
+            arguments["moodlewsrestformat"] = "json";
+            using var response = await _httpClient.PostAsync(connection.Endpoint, new FormUrlEncodedContent(arguments), cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("exception", out var exception))
+            {
+                var message = document.RootElement.TryGetProperty("message", out var detail) ? detail.GetString() : exception.GetString();
+                document.Dispose();
+                throw new InvalidOperationException($"Moodle web service {function} failed: {message}");
+            }
+            return document;
+        }
+
+        private static string ReadString(JsonElement element, string name) => ReadNullableString(element, name) ?? string.Empty;
+        private static string? ReadNullableString(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? value.ToString() : null;
+        private static int ReadInt(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.TryGetInt32(out var result) ? result : 0;
+        private static bool ReadBool(JsonElement element, string name) => element.TryGetProperty(name, out var value) && (value.ValueKind == JsonValueKind.True || value.ToString() == "1");
+        private static decimal? ReadDecimal(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null && decimal.TryParse(value.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : null;
+        private static bool HasStudentRole(JsonElement element) => element.TryGetProperty("roles", out var roles) && roles.ValueKind == JsonValueKind.Array &&
+            roles.EnumerateArray().Any(role => string.Equals(ReadString(role, "shortname"), "student", StringComparison.OrdinalIgnoreCase));
 
         private async Task<(Uri Endpoint, string Token)> ResolveConnectionAsync()
         {

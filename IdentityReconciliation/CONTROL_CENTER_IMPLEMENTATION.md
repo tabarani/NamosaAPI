@@ -43,3 +43,16 @@ After the first administrator and clients are created, remove the `Bootstrap__*`
 ## Safety rule
 
 Never copy or synchronize Gibbon or Moodle password hashes. First-login migration verifies the existing credential against its source system once, then requires a new IdP password.
+
+## Moodle course totals to Gibbon
+
+The Control Center owns the end-of-semester grade-transfer workflow:
+
+- Moodle `course.idnumber` contains the target Gibbon `gibbonCourseClassID`; missing mappings are blocked.
+- Moodle `user.idnumber` contains the student's `gibbonPersonID`, and only Moodle's student course role is evaluated.
+- Moodle's calculated course total is transferred as a percentage by default, with raw-total mode available.
+- One marked Gibbon Markbook column is created per class and semester. Re-runs upsert the same entries.
+- Administrators control completeness, hidden grades, overwrite behaviour, visibility, manual runs and the scheduled date window.
+- Scheduled global transfer runs once per semester key. Preview is read-only, and validation failures are recorded in the job log.
+
+Required Moodle functions: `core_course_get_courses`, `core_enrol_get_enrolled_users`, and `gradereport_user_get_grade_items`.

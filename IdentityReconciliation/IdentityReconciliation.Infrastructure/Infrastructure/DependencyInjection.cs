@@ -29,6 +29,9 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<IIntegrationConnectionResolver>(sp => sp.GetRequiredService<IntegrationSystemService>());
             services.AddScoped<ControlCenterSchemaInitializer>();
             services.AddScoped<ISyncJobService, SyncJobService>();
+            services.AddScoped<IGibbonGradeRepository, GibbonGradeRepository>();
+            services.AddScoped<IGradeTransferService, GradeTransferService>();
+            services.AddHostedService<GradeTransferScheduler>();
             services.AddDataProtection();
             services.AddHttpClient("IntegrationHealth", client => client.Timeout = TimeSpan.FromSeconds(10));
             

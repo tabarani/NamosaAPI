@@ -97,8 +97,8 @@ namespace IdentityReconciliation.Infrastructure.Clients
             var min = ReadDecimal(item, "grademin");
             var max = ReadDecimal(item, "grademax");
             var percentage = raw.HasValue && min.HasValue && max.HasValue && max.Value > min.Value
-                ? Math.Round((raw.Value - min.Value) * 100m / (max.Value - min.Value), 2)
-                : null;
+    ? Math.Round((raw.Value - min.Value) * 100m / (max.Value - min.Value), 2)
+    : (decimal?)null;
             return new MoodleCourseGradeDto(raw, min, max, percentage, ReadBool(item, "hidden"), ReadBool(item, "overridden"), ReadNullableString(item, "feedback"));
         }
 

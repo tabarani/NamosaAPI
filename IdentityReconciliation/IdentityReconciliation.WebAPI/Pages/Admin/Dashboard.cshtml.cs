@@ -1,6 +1,5 @@
 using IdentityReconciliation.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -10,29 +9,22 @@ namespace IdentityReconciliation.WebAPI.Pages.Admin
     public class DashboardModel : PageModel
     {
         private readonly IReconciliationService _reconciliationService;
-        private readonly IUserMapRepository _userMapRepository;
         private readonly ILogger<DashboardModel> _logger;
 
         public DashboardModel(
             IReconciliationService reconciliationService,
-            IUserMapRepository userMapRepository,
             ILogger<DashboardModel> logger)
         {
             _reconciliationService = reconciliationService;
-            _userMapRepository = userMapRepository;
             _logger = logger;
         }
 
-        [BindProperty]
-        public DashboardStats Stats { get; set; } = new();
+        public DashboardStats Stats { get; set; } = new(0, 0, 0, 0);
 
-        [BindProperty]
         public List<PendingMatchDto> PendingMatches { get; set; } = new();
 
-        [BindProperty]
         public List<ConflictDto> Conflicts { get; set; } = new();
 
-        [BindProperty]
         public List<SyncLogDto> SyncLogs { get; set; } = new();
 
         [TempData]
@@ -76,18 +68,18 @@ namespace IdentityReconciliation.WebAPI.Pages.Admin
             try
             {
                 var result = await _reconciliationService.ResolveConflictAsync(userMapId, link);
-                
+
                 if (result && link)
                 {
                     SuccessMessage = "Conflict resolved successfully. Users have been linked.";
                 }
-                else if (!link)
+                else if (result && !link)
                 {
                     SuccessMessage = "Conflict resolution declined. The match has been ignored.";
                 }
                 else
                 {
-                    ErrorMessage = "Failed to resolve conflict. Record not found.";
+                    ErrorMessage = "Failed to resolve conflict. Record not found or incomplete.";
                 }
 
                 _logger.LogInformation("Conflict resolution by admin. UserMapId: {Id}, Link: {Link}", userMapId, link);

@@ -273,12 +273,11 @@ namespace IdentityReconciliation.Application.Reconciliation.Handlers
             
             int linkedCount = 0;
             int ignoredCount = 0;
-
             foreach (var map in pendingMaps.Where(m => m.GibbonId == null && !string.IsNullOrWhiteSpace(m.Email)))
             {
                 var exactMatches = gibbonPersons
-                    .Where(g => !string.IsNullOrWhiteSpace(g.Email) && 
-                               g.Email.Equals(m.Email, StringComparison.OrdinalIgnoreCase))
+                    .Where(g => !string.IsNullOrWhiteSpace(g.Email) &&
+                               g.Email.Equals(map.Email, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 if (exactMatches.Count == 1)

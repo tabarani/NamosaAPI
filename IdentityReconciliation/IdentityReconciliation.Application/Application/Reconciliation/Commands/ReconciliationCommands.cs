@@ -1,4 +1,5 @@
 using IdentityReconciliation.Application.DTOs;
+using IdentityReconciliation.Application.Interfaces;
 using MediatR;
 
 namespace IdentityReconciliation.Application.Reconciliation.Commands;
